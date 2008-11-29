@@ -1,0 +1,126 @@
+# Copyright 2005-2008 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# just modified from E-on-CL, remove distinct as soon as we're not using EoJ-parser-without-implements
+
+pragma.syntax("0.8")
+pragma.disable("explicit-result-guard")
+
+def Throwable := <import:org.cubik.cle.prim.Throwable>
+#def makeException := <import:org.cubik.cle.prim.makeException>
+
+def RefAuthor {
+  # XXX map args?
+  # Stamped rather than audited deep-frozen since DeepFrozen is nonprimitive and uses Ref itself in the course of auditing. XXX have DeepFrozenAuthor use primitives?
+  to run(makePromise, refShorten, refState, refIsResolved, makeUnconnectedRef, refOptProblem, refOptSealedDispatch, sElibBroken, sElibNear, sElibEventual, DeepFrozenStamp) :any {
+
+    def nbmPrinter(out :TextWriter, ex) {
+      out.quote(ex.getSpecimen())
+      out.write(" is not broken")
+    }
+
+    def Ref0 {
+      to promise() :any { makePromise() }
+      
+      to isBroken(r)   :any { refState(r) == sElibBroken }
+      to isNear(r)     :any { refState(r) == sElibNear }
+      to isEventual(r) :any { refState(r) == sElibEventual }
+      to isFar(r) :any { refState(r) == sElibEventual && refIsResolved(r) }
+      to state(r) :any {
+        switch (refState(r)) {
+          match ==sElibNear     { return "NEAR" }
+          match ==sElibEventual { return "EVENTUAL" }
+          match ==sElibBroken   { return "BROKEN" }
+        }
+      }
+      
+      to isSettled(r)  :any { __equalizer.isSettled(r) }
+      to isResolved(r) :any { refIsResolved(r) }
+      
+      to broken(p) :any { 
+        # The new exception-sealing system means that broken references must be able to hold arbitrary values. However, current E programs (and our test suite) expect Ref.broken("foo") to make an exception object. Thus this guard.
+        makeUnconnectedRef(Throwable.coerce(p, throw))
+      }
+      to optProblem(r) :any { refOptProblem(r) }
+      to "match__broken/1"(r, ej) :any {
+        if (refState(r) == sElibBroken) {
+          [refOptProblem(r)]
+        } else {
+          #throw.eject(ej, makeException([meta.context().getFQNPrefix() + "NotBrokenMismatch"], ["specimen" => r], nbmPrinter))
+          throw.eject(ej, "Not broken: " + E.toQuote(r)) # XXX stubbed out makeException
+        }
+      }
+      
+      /** XXX doesn't belong here, recommend using the PassByCopy guard instead? */
+      to isPassByCopy(r) :any { 
+        if (Selfless.passes(r)) { Ref.isPBC(r) } else { false }
+      }
+      /** XXX doesn't belong here, recommend using the pbc guard instead? */
+      to isPBC(r) :any { 
+        return (escape fail { pbc.coerce(r, fail) == r } catch _ { false })
+      }
+      /** XXX doesn't belong here, recommend using Selfless instead? */
+      to isSelfish(r) :any {
+        if (Ref.isNear(r)) { !Selfless.passes(r) } else { false }
+      }
+      
+      to whenResolved(r, reactor) :any {
+        # XXX does this match the semantics of the standard E whenResolved?
+        #traceln(`entering whenResolved`)
+        def [resultPromise, resultResolver] := makePromise()
+        def safeWhenResolvedReactor(_) :void {
+          #traceln(`entering safeWhenResolvedReactor (ref is $r)`)
+          if (refIsResolved(r)) {
+            #traceln(`  is-resolved branch ($resultResolver)`)
+            if (!resultResolver.isDone()) {
+              #traceln(`  resolving reactor`)
+              resultResolver.resolve(reactor <- run(r))
+            } else {
+              #traceln(`  duplicate reactor invocation`)
+            }
+            #traceln(`  finished`)
+          } else {
+            #traceln(`  not-resolved branch`)
+            E.sendOnly(r, "__whenMoreResolved", [safeWhenResolvedReactor])
+            #traceln(`  sent next __whenMoreResolved to $r`)
+          }
+        }
+        safeWhenResolvedReactor(null)
+        resultPromise
+      }
+
+      to whenResolvedOnly(r, reactor) :any {
+        var active := true
+        def safeWhenResolvedOnlyReactor(_) :void {
+          if (refIsResolved(r)) {
+            if (active) {
+              active := false
+              E.sendOnly(reactor, "run", [r])
+            }
+          } else {
+            E.sendOnly(r, "__whenMoreResolved", [safeWhenResolvedOnlyReactor])
+          }
+        }
+        safeWhenResolvedOnlyReactor(null)
+        null
+      }
+      
+      to resolution(r) :any { refShorten(r) }
+
+      to fulfillment(r) :any {
+        def p := refOptProblem(r)
+        if (p != null) {
+          throw(p)
+        } else if (refIsResolved(r)) {
+          r
+        } else {
+          throw("not resolved (Ref#fulfillment)")
+        }
+      }
+      
+      to optSealedDispatch(r, brand) :any {
+        refOptSealedDispatch(r, brand)
+      }
+    }
+  }
+}

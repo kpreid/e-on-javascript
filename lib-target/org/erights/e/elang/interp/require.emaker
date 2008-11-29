@@ -1,0 +1,66 @@
+# Copyright 2002 Combex, Inc. under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# XXX this is E-on-CL's require modified to be acceptable by EoJ's parser
+
+pragma.syntax("0.8")
+
+# XXX merge this back to E-on-Java
+
+/**
+ * Used to ensure a condition is true before proceeding. If the
+ * condition isn't true, the complaint is thrown
+ */
+def require0 implements DeepFrozen, ExitViaHere {
+    to (cond) :void {
+        require(cond, "required condition failed")
+    }
+    to (cond, problem) :void {
+        if (!cond) {
+            # XXX This should be improved - it will fail if strings or exceptions get run/0 methods.
+            if (problem.__respondsTo("run", 0)) {
+                throw(problem())
+            } else {
+                throw(problem)
+            }
+        }
+      }
+    match [=="run", [cond, prob0] + probRest] {
+        # XXX is this actually used anywhere? If so, will it succeed under the new string#add rules?
+        if (! cond) {
+            var problem := prob0
+            for prob in probRest {
+                problem := problem + prob
+            }
+            require(false, problem)
+        }
+    }
+}
+
+    ? require(2 == 3, fn{"foo"})
+    # problem: foo
+    #
+    #   <elang:interp.Thrower>("foo")
+    #   <require>(false, <e object>)
+    #   <interp> evalPrint(e`require run(Ref same(2, 3), \
+    #   /**  * Needs a docComment  */ def _ {     \
+    #   to run :any {         "foo"     } })`)
+
+    ? require(2 == 2, fn{"foo"})
+    ? require(2 == 3)
+    # problem: required condition failed
+    #
+    #   <elang:interp.Thrower>("required condition failed")
+    #   <require>(false, <e object>)
+    #   <require>(false)
+    #   <interp> evalPrint(e`require run(Ref same(2, 3))`)
+
+    ? require(2 == 2)
+    ? require(2 == 3, "foobar")
+    # problem: foobar
+    #
+    #   <elib:prim.E> require(false, "foobar")
+    #   <require>(false, "foobar")
+    #   <interactive interp> evalPrint(e`require run(__equalizer isSame(2, 3),\
+    #   "foobar")`)
+

@@ -1,0 +1,115 @@
+# Copyright 2005-2008 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# XXX copied from EoJ just to remove EoCL-only syntax features. NOTHING TO SEE HERE, REPLACE IT AS NEEDED
+
+pragma.syntax("0.9")
+
+#def sugarRoot :DeepFrozen := <import:org.cubik.cle.sugarRoot>
+def sugarRoot {} # XXX stubbing
+
+def mapSugar
+
+#def makeFlexMap :DeepFrozen := <import:org.erights.e.elib.tables.makeFlexMap>
+
+# XXX I expect to move this to a separate emaker.
+def makeReadOnlyMap {
+  to run(rwImpl) {
+    return def roMap {
+      to __printOn(out :TextWriter) :void {
+        out.printSame(rwImpl)
+        out.write(".readOnly()")
+      }
+      method fetch(k, t) { rwImpl.fetch(k, t) }
+      method getPair() { rwImpl.getPair() }
+      method getKeys() { rwImpl.getKeys() }
+      method getValues() { rwImpl.getValues() }
+      method snapshot() { rwImpl.snapshot() }
+      match [v,a] { E.call(mapSugar, "instance_" + v, [roMap] + a) }
+    }
+  }
+}
+
+def childResponsibility(self, mverb) {
+  throw(E.toQuote(self) + " failed to implement " + mverb)
+}
+
+bind mapSugar extends sugarRoot implements ExitViaHere {
+  
+  method instance_keyType(self) { childResponsibility(self, "keyType/0") }
+  method instance_valueType(self) { childResponsibility(self, "valueType/0")}
+
+  method instance_size(self) { childResponsibility(self, "size/0") }
+  method instance_fetch(self, key, absentThunk) { childResponsibility(self, "fetch/2") }
+  method instance_getKeys(self) { childResponsibility(self, "getKeys/0") }
+  method instance_getPair(self) { childResponsibility(self, "getPair/0") }
+
+  method instance_get(self, key) { self.fetch(key, fn{ throw(E.toQuote(key) + " not found") }) }
+  to instance_maps(self, key) :boolean { self.fetch(key, fn{ return false }); return true }
+  
+  to instance_iterate(self, assocFunc) {
+    for key in self.getKeys() {
+      assocFunc(key, self[key])
+    }
+  }
+  
+  to instance_or(front, behind) {
+    return mapSugar.instance_or(front, behind, false, throw)
+  }
+  to instance_or(front, behind, strict) {
+    return mapSugar.instance_or(front, behind, strict, throw)
+  }
+  to instance_or(front, behind, strict, optEjector) {
+    return if (front.size().isZero()) {
+      behind.snapshot()
+    } else if (behind.size().isZero()) {
+      front.snapshot()
+    } else {
+      __makeMap.fromIteratable(def mapOrIterator {
+        to iterate(f) {
+          behind.iterate(f)
+          front.iterate(f)
+        }
+      }, strict, optEjector)
+    }
+  }
+  
+  to instance_diverge(self, keyGuard, valueGuard) {
+    def fm := makeFlexMap.fromTypes(keyGuard, valueGuard)
+    escape duplicate {
+      fm.putAll(self, true, duplicate)
+    } catch dupException {
+      # XXX dupException should tell us what key it was, but doesn't yet
+      # XXX quote, not print
+      throw(`duplicate keys in $self under $keyGuard coercion`) # ` while attempting to make a FlexMap`
+    }
+    return fm
+  }
+  method instance_diverge(self) { self.diverge(any, any) }
+  method instance_snapshot(self) {
+    def [keys, values] := self.getPair()
+    __makeMap.fromColumns(keys, values)
+  }
+  to instance_readOnly(self) {
+    return makeReadOnlyMap(self)
+  }
+  
+  to instance_printOn(self, openS, mapS, sepS, closeS, out :TextWriter) {
+    out.write(openS)
+    var first := true
+    for key => value in self {
+      if (first) {
+        first := false
+      } else {
+        out.write(sepS)
+      }
+      out.quote(key)
+      out.write(mapS)
+      out.quote(value)
+    }
+    out.write(closeS)
+  }
+}
+
+# XXX this file is in need of tests - it is currently only tested indirectly by its use in the standard maps
+

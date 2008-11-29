@@ -1,0 +1,499 @@
+# Copyright 2008 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+pragma.enable("easy-return")
+pragma.disable("explicit-result-guard")
+
+pragma.enable("accumulator")
+pragma.enable("verb-curry")
+pragma.enable("anon-lambda")
+
+def makeCallExpr := <elang:evm.makeCallExpr>
+def makeSlotExpr := <elang:evm.makeSlotExpr>
+def FinalPattern := <elang:evm.makeFinalPattern>.asType()
+def VarPattern := <type:org.erights.e.elang.evm.VarPattern> # import won't ???
+def SlotPattern := <elang:evm.makeSlotPattern>.asType()
+def IgnorePattern := <elang:evm.makeIgnorePattern>.asType()
+
+def map {
+  to v(f, coll) {
+    return accum [] for v in coll {_.with(f(v))}}
+  to kv(f, coll) {
+    return accum [] for k => v in coll {_.with(f(k, v))}}
+}
+def map2(f, coll) {
+  var az := []
+  var bs := []
+  for v in coll {
+    def [a, b] := f(v)
+    az with= a
+    bs with= b
+  }
+  return [az, bs]
+}
+
+def STATEMENT {}
+def EXPR {}
+
+interface SV guards SVStamp {}
+def makeSV(kind, text, temps) {
+  if (false) {
+    var par := 0
+    for c in text {
+      switch (c) {
+        match =='(' { par += 1 }
+        match ==')' { par -= 1 }
+        match _ {}
+      }
+    }
+    if (par != 0) {
+      throw(`Mismatched parens in $text`)
+    }
+  }
+  return def sv implements SVStamp {
+    to requireExpr(ej) { require(kind == EXPR, fn {throw.eject(ej, `$text is not an expression`)})}
+    to withTemp(t :String) { return makeSV(kind, text, temps.with(t)) }
+    to out(ts) { ts.addAll(temps); return text }
+    to outz() { return text }
+  }
+}
+
+def Expr {
+  to coerce(specimen, ej) {
+    def sv := SV.coerce(specimen, ej)
+    sv.requireExpr(ej)
+    return sv
+  }
+}
+
+var i := 0
+
+def unsv(sv) {
+  def tc := [].asSet().diverge()
+  def text := sv.out(tc)
+  def temps := if (tc.size().aboveZero()) {
+    `var ${", ".rjoin(tc.getElements())};$\n`
+  } else { "" }
+  return `$temps$text`
+}
+
+def jsKit {
+  to fresh() {
+      return makeSV(EXPR, def t := `e_t${i += 1}`, [].asSet())
+    }
+  to temp() {
+    #if (i == 39) {throw("break") }
+    return [makeSV(EXPR, def t := `e_t${i += 1}`, [t].asSet()),
+            fn expr { expr.requireExpr(null); def tc := [t].asSet().diverge(); makeSV(EXPR, `($t = ${expr.out(tc)})`, tc.snapshot()) }]
+  }
+  to literal(v) {
+    return switch (v) {
+      match s :String { makeSV(EXPR, `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`, [].asSet()) }
+      #match c :char { jsKit.callf(makeSV("e__makeCharacter", [].asSet()), [jsKit.literal(E.toString(v))]) }
+      match n :int     { makeSV(EXPR, `($n)`, [].asSet()) }
+      match n :float64 { makeSV(EXPR, `($n)`, [].asSet()) }
+    }
+  }
+  to call(targ :Expr, prop :String, args :List[Expr]) {
+    return jsKit.callf(jsKit.prop(targ, prop), args)
+  }
+  to callf(targ :Expr, args :List[Expr]) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `${targ.out(tc)}(${", ".rjoin(map.v(fn a { a.out(tc) }, args))})`, tc)
+  }
+  to new(targ :Expr, args :List[Expr]) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `new ${targ.out(tc)}(${", ".rjoin(map.v(fn a { a.out(tc) }, args))})`, tc)
+  }
+  to prop(targ :Expr, prop :String) { # XXX check prop
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `${targ.out(tc)}.$prop`, tc)
+  }
+  to subscript(coll :Expr, key :Expr) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `${coll.out(tc)}[${key.out(tc)}]`, tc)
+  }
+  to func(params, body :SV) {
+    def tc := [].asSet().diverge()
+    
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    tw.print("(function (")
+    tw.print(", ".rjoin(map.v(fn a { a.out(tc) }, params)))
+    tw.print(") {")
+    tw.indent().lnPrint(unsv(body))
+    tw.lnPrint("})")
+    
+    return makeSV(EXPR, sb.snapshot(), tc)
+  }
+  to "if"(test :Expr, then :SV, els :SV) {
+    def tc := [].asSet().diverge()
+    
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    tw.print("if (")
+    tw.indent().println()
+    tw.indent().print(test.out(tc))
+    tw.lnPrint(") {")
+    tw.indent().println()
+    tw.indent().lnPrint(then.out(tc))
+    tw.lnPrint("} else {")
+    tw.indent().println()
+    tw.indent().lnPrint(els.out(tc))
+    tw.lnPrint("}")
+    
+    return makeSV(STATEMENT, sb.snapshot(), tc)
+  }
+  to "tryCatch"(body :SV, exVar :Expr, catchBody :SV) { # XXX Expr should be Var
+    def tc := [].asSet().diverge()
+    
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    tw.print("try {")
+    tw.indent().println()
+    tw.indent().print(body.out(tc))
+    tw.println()
+    tw.print("} catch (", exVar.outz(), ") {")
+    tw.indent().println()
+    tw.indent().lnPrint(catchBody.out(tc))
+    tw.lnPrint("}")
+    
+    return makeSV(STATEMENT, sb.snapshot(), tc)
+  }
+  to scope(body :SV) {
+    def tc := [].asSet().diverge()
+    
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    tw.print("(function () {")
+    tw.indent().lnPrint(body.out(tc))
+    tw.lnPrint("})()")
+    
+    return makeSV(EXPR, sb.snapshot(), tc)
+  }
+  to seq(subs :List[SV]) {
+    def tc := [].asSet().diverge()
+    return makeSV(STATEMENT, ";\n".rjoin(map.v(fn a { a.out(tc) }, subs)), tc)
+  }
+  to eseq(subs :List[Expr]) {
+    # XXX make SVs discriminate on statements vs expr and combine with seq?
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `(${", ".rjoin(map.v(fn a { a.out(tc) }, subs))})`, tc)
+  }
+  to nativeVar(name :String) { return makeSV(EXPR, name, [].asSet()) } # XXX check syntax
+  to assign(lv :String, rv :Expr) { # XXX check lvalue syntax
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `($lv = ${rv.out(tc)})`, tc)
+  }
+  to "return"(result :Expr) {
+    def tc := [].asSet().diverge()
+    return makeSV(STATEMENT, `return ${result.out(tc)}`, tc)
+  }
+  to pointerEq(a :Expr, b :Expr) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `(${a.out(tc)} === ${b.out(tc)})`, tc)
+  }
+  to ternary(a :Expr, b :Expr, c :Expr) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `(${a.out(tc)} ? ${b.out(tc)} : ${c.out(tc)})`, tc)
+  }
+  to or(a :Expr, b :Expr) {
+    def tc := [].asSet().diverge()
+    return makeSV(EXPR, `(${a.out(tc)} || ${b.out(tc)})`, tc)
+  }
+  to object(assocs :List[Tuple[Expr, Expr]]) {
+    def tc := [].asSet().diverge()
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    tw.println("({")
+    tw.indent().println()
+    tw.indent().print(",\n".rjoin(map.v(fn [k,v] { k.out(tc) + ": " + v.out(tc) }, assocs)))
+    tw.lnPrint("})")
+    
+    return makeSV(EXPR, sb.snapshot(), tc)
+  }
+  to array(elems :List[Expr]) {
+    def tc := [].asSet().diverge()
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    if (elems.size() > 1) {
+      tw.print("[")
+      tw.indent().println()
+      tw.indent().print(",\n".rjoin(map.v(fn v { v.out(tc) }, elems)))
+      tw.lnPrint("]")
+    } else {
+      tw.print("[")
+      tw.print(", ".rjoin(map.v(fn v { v.out(tc) }, elems)))
+      tw.print("]")
+    }
+    
+    return makeSV(EXPR, sb.snapshot(), tc)
+  }
+  to param(name :Expr) {
+    # XXX should have syntax type tags and check that this is a var
+    return makeSV(EXPR, name.outz(), [].asSet())
+  }
+}
+
+def targetKit := jsKit
+
+
+def compilePat
+
+def convertVerb(verb, arity) {
+  # XXX escape/mangle funky chars
+  return `emsg_${verb}_$arity`
+}
+def convertNoun(noun) {
+  # XXX funky chars
+  return makeSV(EXPR, `e_slot_$noun`, [])
+}
+
+def tempifyJsExpr(temp__Resolver, sv) {
+  return if (sv.outz() =~ rx`[A-Za-z$$0-9]+`) { # XXX right identifier pattern?
+    bind temp := sv
+    targetKit.nativeVar("undefined")
+  } else {
+    def [bind temp, out] := targetKit.temp()
+    out(sv)
+  }
+}
+
+/** generate an E-call with already-compiled args */
+def genCall(recip :SV, verb :String, args :List[SV]) {
+  def prop := convertVerb(verb, args.size())
+  
+  def [argAssigners, argTemps] := map2(fn arg {
+    [tempifyJsExpr(def temp, arg), temp]
+  }, args)
+  def assigners := [tempifyJsExpr(def recipTemp, recip)] + argAssigners
+  
+  return targetKit.eseq(assigners.with(
+    targetKit.ternary(targetKit.or(
+                        targetKit.pointerEq(recipTemp,
+                                            targetKit.nativeVar("undefined")),
+                        targetKit.pointerEq(targetKit.prop(recipTemp, prop),
+                                            targetKit.nativeVar("undefined"))),
+                      targetKit.callf(targetKit.nativeVar("e_NoJsMethod"), [
+                                        recipTemp,
+                                        targetKit.literal(verb),
+                                        targetKit.array(argTemps)]),
+                      targetKit.call(recipTemp, prop, argTemps))
+  ))
+}
+
+
+def compile(expr, out) {
+  #traceln(`compiling $expr`)
+  return expr.welcome(def visitor {
+    to visitLiteralExpr(_, v) { return out(jsKit.literal(v)) }
+    to visitNounExpr(expr, _) { return compile(makeCallExpr(null, (makeSlotExpr(null, expr, null)), "get", [], null), out) }
+    to visitSlotExpr(_, n) { return out(convertNoun(n.getName())) }
+    to visitSeqExpr(_, subs) { return targetKit.seq(map.v(fn sub { compile(sub, __identityFunc) }, subs(0, subs.size() - 1)) + [compile(subs.last(), out)]) }
+    to visitCallExpr(_, rec, verb, args) {
+      def [rtemp, rout] := targetKit.temp()
+      def [argTemps, argAssigners] := map2(fn arg {
+        def [temp, tout] := targetKit.temp()
+        [temp, compile(arg, tout)]
+      }, args)
+      return targetKit.seq(
+          [compile(rec, rout)] \
+        + argAssigners \
+        + [out(genCall(rtemp, verb, argTemps))]
+      )
+      #return genCall(compile(rec, out), verb, map.kv(fn _,v { compile(v, out)}, args))
+    }
+    to visitDefineExpr(_, pat, ej, expr) {
+      # XXX compile ej
+      def [temp, tout] := targetKit.temp()
+      return targetKit.seq([compile(expr, tout),
+                          compilePat(pat, temp, null),
+                          out(temp)])
+    }
+    to visitAssignExpr(_, lv, rv) {
+      def [rtemp, rout] := targetKit.temp()
+      def [ltemp, lout] := targetKit.temp()
+      
+      return targetKit.seq([
+        compile(rv, rout),
+        compile(makeSlotExpr(null, lv, null), lout),
+        genCall(ltemp, "put", [rtemp]),
+        out(rtemp)
+      ])
+    }
+    to visitEscapeExpr(_, pat, body, cp, cb) {
+      def exceptionName := targetKit.fresh()
+      def ejectorMake := targetKit.new(targetKit.nativeVar("e_Ejector"), []) # XXX preserve name 
+      def [ejectorObj, eout] := targetKit.temp()
+      return\
+      targetKit.seq([
+        eout(ejectorMake),
+        targetKit.tryCatch(
+          targetKit.seq([
+            compilePat(pat, ejectorObj, null),
+            compile(body, out),
+          ]),
+          exceptionName,
+          targetKit."if"(
+            targetKit.pointerEq(targetKit.prop(exceptionName, "e_Ejector"), ejectorObj),
+            if (cp == null) {
+              out(targetKit.prop(exceptionName, "e_RetVal"))
+            } else {
+              targetKit.seq([ compilePat(cp, targetKit.prop(exceptionName, "e_RetVal"), null), compile(cb, out) ])
+            },
+            targetKit.callf(targetKit.nativeVar("throw"), [exceptionName]))) # XXX throw isn't a function, this shouldn't work
+      ])
+    }
+    to visitFinallyExpr(_, body, cleanup) {
+      return compile(body, out) # XXX fix
+    }
+    to visitCatchExpr(_, body, catchPatt, catchBody) {
+      return compile(body, out) # XXX fix
+    }
+    to visitHideExpr(_, body) {
+      return targetKit.scope(compile(body, out))
+    }
+    to visitMatchBindExpr(_, specimen, pattern) {
+      # XXX ejector
+      def [temp, tout] := targetKit.temp()
+      return targetKit.seq([compile(specimen, tout),
+                          compilePat(pattern, temp, Ref.broken("missing ejector stuff")),
+                          out(targetKit.nativeVar("true"))])
+    }
+    to visitIfExpr(_, cond, then, els) {
+      # XXX coerce to boolean
+      def [ctemp, cout] := targetKit.temp()
+      return targetKit.seq([
+        compile(cond, cout),
+        targetKit."if"(ctemp,
+          compile(then, out),
+          compile(els, out)),
+      ])
+    }
+    to visitObjectExpr(_, docComment, name, auditors, script) {
+      # XXX auditors
+      # XXX doc comment
+      # XXX name properly
+      # XXX plumbing
+      def nameString := switch (name) {
+        match _ :IgnorePattern { "_" }
+        match p :FinalPattern { p.getNoun().getName() }
+        match p :VarPattern { p.getNoun().getName() }
+        match p :SlotPattern { "&" + p.getNoun().getName() }
+        match _ { "???" }
+      }
+      
+      def [objtemp, objOut] := targetKit.temp()
+      
+      var jsmethods := [
+        [targetKit.literal("toString"),
+          targetKit.func([], targetKit."return"(targetKit.literal(`<E object $nameString>`)))]
+      ]
+      jsmethods := accum jsmethods for m in script.getOptMethods() {
+        _.with([targetKit.literal(convertVerb(m.getVerb(), m.getPatterns().size())),
+                {
+                  # XXX result guard
+                  def atemps := accum [] for _ in m.getPatterns() { _.with(targetKit.fresh()) }
+                  def cv := compile(m.getBody(), jsKit."return")
+                  if (cv !~ sv :SV) { throw(`cv is $cv from ${m.getBody()}`) }
+                  targetKit.func(atemps,
+                    targetKit.seq(map.kv(fn i,p { compilePat(p, atemps[i], null) }, m.getPatterns()) + [cv]))
+              }])
+      }
+      
+      if ((def matchers := script.getMatchers()).size().aboveZero()) {
+        def [m] := matchers # XXX support >1
+        def verbt := targetKit.fresh()
+        def argt := targetKit.fresh()
+        jsmethods with= [targetKit.literal("emsg"),
+          targetKit.func([verbt, argt],
+            targetKit.seq([
+              compilePat(m.getPattern(), targetKit.array([verbt, argt]), null), # XXX handle match failure
+              compile(m.getBody(), jsKit."return")]))]
+      }
+      
+      return targetKit.seq([
+        objOut(jsKit.object(jsmethods)),
+        compilePat(name, objtemp, null),
+        out(objtemp)
+      ])
+    }
+    to visitMetaContextExpr(n) {
+      return out(targetKit.callf(targetKit.nativeVar("alert"), [targetKit.literal(`$n not implemented`)]))
+    }
+    to visitMetaStateExpr(n) {
+      return out(targetKit.callf(targetKit.nativeVar("alert"), [targetKit.literal(`$n not implemented`)]))
+    }
+  })
+}
+
+def compileBindingPattern(ne, guardE, slotCompile, slotCompileGuarded) {
+  def slotvar := convertNoun(ne.getName()).outz()
+  if (guardE == null) {
+    return targetKit.assign(slotvar, slotCompile()).withTemp(slotvar)
+  } else {
+    def [gtemp, gout] := targetKit.temp()
+    return targetKit.seq([
+      compile(guardE, gout),
+      targetKit.assign(slotvar, slotCompileGuarded(gtemp)).withTemp(slotvar)
+    ])
+  }
+}
+
+def cMakeFinalSlot := targetKit.nativeVar(`e_makeFinalSlot`)
+def cMakeVarSlot := targetKit.nativeVar(`e_makeVarSlot`)
+def cMakeGuardedSlot := targetKit.nativeVar(`e_makeGuardedSlot`)
+
+bind compilePat(pat, specimen, optEjSpec) {
+  return pat.welcome(def visitor {
+    to visitIgnorePattern(_, guardE) {
+      if (guardE == null) {
+        return targetKit.nativeVar(`undefined`)
+      } else {
+        def [gtemp, gout] := targetKit.temp()
+        return targetKit.seq([
+          compile(guardE, gout),
+          genCall(gtemp, "coerce", [specimen, targetKit.nativeVar("e_throw")])
+        ])
+      }
+    }
+    to visitFinalPattern(_, ne, guardE) {
+      return compileBindingPattern(ne, guardE, 
+        fn { targetKit.callf(cMakeFinalSlot, [specimen]) },
+        fn guard { genCall(cMakeFinalSlot, "run", [genCall(guard, "coerce", [specimen, targetKit.nativeVar("e_throw")])]) })
+    }
+    to visitVarPattern(_, ne, guardE) {
+      return compileBindingPattern(ne, guardE,
+        fn { targetKit.callf(cMakeVarSlot, [specimen]) },
+        fn guard { targetKit.callf(cMakeGuardedSlot, [specimen, guard]) })
+    }
+    to visitSlotPattern(_, ne, guardE) {
+      return compileBindingPattern(ne, guardE, 
+        fn { specimen },
+        fn guard { genCall(guard, "coerce", [specimen, guard]) })
+    }
+    to visitListPattern(_, subs) {
+      # XXX coerce, length
+      return targetKit.seq(accum [] for i => sub in subs { _.with(
+        compilePat(sub, targetKit.subscript(specimen, targetKit.literal(i)), optEjSpec)
+      )})
+    }
+    to visitViaPattern(_, func, subpatt) {
+      def [fTemp, fOut] := targetKit.temp()
+      def [subSpecimenTemp, subSpecOut] := targetKit.temp()
+      return targetKit.seq([
+        compile(func, fOut),
+        subSpecOut(genCall(fTemp, "run", [specimen, targetKit.nativeVar("e_throw")])), # XXX use optEjSpec
+        compilePat(subpatt, subSpecimenTemp, optEjSpec)
+      ])
+    }
+  })
+}
+
+def outerCompile{
+  to run(expr) {
+    return unsv(compile(expr, __identityFunc))
+  }
+  to returning(expr) {
+    return unsv(compile(expr, jsKit."return"))
+  }
+}
+
+#def [filename] := interp.getArgs()
+#def expr := <elang:syntax.makeEParser>.run(<file>[filename].getTwine())
+#
+#println(outerCompile(expr))
