@@ -58,3 +58,15 @@ It is rather sketchy: various parts are specific to the test cases I've been wor
 5. Serve your application.
 
   The HTML file must have appropriate (relative or absolute) URLs to e.js (supplied), compiled emaker .js files, and your compiled E program.
+
+--- Implementation notes
+
+Since JavaScript null and undefined throw when called, E's null is a distinct object (e_null), and JS null and undefined are considered kinds of broken reference.
+
+--- Todo list
+
+- A parser for E written in E or JavaScript (perhaps using OMeta http://www.cs.ucla.edu/~awarth/ometa/ )
+- Get the compiler running under EoJS
+    (Together these two would make it capable of providing a REPL without a web server supporting it.)
+- Provide a bridge to Caja DOM taming so that E programs can manipulate their page's DOM
+    

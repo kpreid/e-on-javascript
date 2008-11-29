@@ -263,16 +263,12 @@ def genCall(recip :SV, verb :String, args :List[SV]) {
   def assigners := [tempifyJsExpr(def recipTemp, recip)] + argAssigners
   
   return targetKit.eseq(assigners.with(
-    targetKit.ternary(targetKit.or(
-                        targetKit.pointerEq(recipTemp,
-                                            targetKit.nativeVar("undefined")),
-                        targetKit.pointerEq(targetKit.prop(recipTemp, prop),
-                                            targetKit.nativeVar("undefined"))),
+    targetKit.ternary(targetKit.prop(recipTemp, prop), # all functions are true as conditions
+                      targetKit.call(recipTemp, prop, argTemps),
                       targetKit.callf(targetKit.nativeVar("e_NoJsMethod"), [
                                         recipTemp,
                                         targetKit.literal(verb),
-                                        targetKit.array(argTemps)]),
-                      targetKit.call(recipTemp, prop, argTemps))
+                                        targetKit.array(argTemps)]))
   ))
 }
 

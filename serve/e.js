@@ -14,7 +14,7 @@ function e_noSuchMethod(r, v, a) {
 
 // called whenever an E-called object doesn't have an appropriately named JS method
 function e_NoJsMethod(r, v, a) {
-  if (r != undefined && r.emsg != undefined) {
+  if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine
     return r.emsg(v, a)
   } else {
     return e_noSuchMethod(r, v, a)
@@ -35,6 +35,10 @@ function e_call(r, v, a) {
   }
 }
 
+var e_null = {
+  toString: function () { return "<E null>" },
+}
+
 // --- ejectors ---
 function e_Ejection(ejector, value) {
   this.e_Ejector = ejector
@@ -47,9 +51,9 @@ function e_Ejector() { // constructor
   this.emsg_run_1 = function (value) {
     throw new e_Ejection(ejector, value)
   }
-  this.emsg_run_0 = function () { this.emsg_run_1(undefined) }
+  this.emsg_run_0 = function () { this.emsg_run_1(e_null) }
 }
-e_Ejector.toString = function () { return "<ejec"+"tor>" }
+e_Ejector.toString = function () { return "<ejector>" }
 
 // --- ref primitives ---
 
@@ -92,10 +96,13 @@ function e_NativeGuard(typeStr) {
   this.typeStr = typeStr
 }
 e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
+  if (typeof(specimen) === "object") {
+    specimen = specimen.valueOf()
+  }
   if (typeof(specimen) === this.typeStr) {
     return specimen
   } else { // XXX miranda coerce
-    throw("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + typeStr)
+    throw("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr)
   }
 }
 
@@ -110,15 +117,20 @@ e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   }
 }
 
-var e_string_guard = new e_NativeGuard("string")
+var e_boolean_guard = new e_NativeGuard("boolean")
+var e_number_guard  = new e_NativeGuard("number")
+var e_string_guard  = new e_NativeGuard("string")
 
-function e_constructorGuard(constr) {
+function e_getObjectGuard(constr) {
   var guard = constr.e_guard
   if (guard === undefined) {
-    guard = constr.e_guard = new e_NativeGuard(constr)
+    guard = constr.e_guard = new e_ObjectGuard(constr)
   }
   return guard
 }
+
+// Note that JavaScript code can create 'subclasses' of existing constructors, and create instances from existing constructors with arbitrarily modified properties/methods. HOWEVER, Cajita code can do neither, so checking instanceofs is sufficient in a world of Cajita code and relied-upon JavaScript code.
+var e_array_guard  = e_getObjectGuard(Array)
 
 var e_fqnTable = {}
 var e_sugarCache = {}
@@ -137,7 +149,7 @@ function e_sugarHandler(verb, args) {
 function e_wrapJsFunction(jsFunction) {
   return {
     emsg: function (verb, args) {
-      if (verb == "run") {
+      if (verb === "run") {
         return jsFunction(args)
       } else {
         e_noSuchMethod(this, verb, args) // XXX miranda
@@ -186,11 +198,11 @@ var e_throw = {
 
 function e_makeFinalSlot(value) {
   return {emsg_get_0: function () {return value},
-          toString: function () { return "<E final slot "+ this.value + ">" }, }}
+          toString: function () { return "<E final slot "+ value + ">" }, }}
 function e_makeVarSlot(value) {
   return {emsg_get_0: function () {return value},
           emsg_put_1: function (v) {value = v},
-          toString: function () { return "<E var slot "+ this.value + ">" },}}
+          toString: function () { return "<E var slot "+ value + ">" },}}
 
 function e_magicLazySlot(thunk) {
   var got = false
@@ -215,7 +227,7 @@ function makeFlexList() {
 
 // ConstMap constructor
 function e_ConstMap(keys, values) {
-  // XXX implement this require(keys.length == values.length)
+  // XXX implement this require(keys.length === values.length)
   this.keys = keys
   this.values = values
   this.table = {}
@@ -245,16 +257,18 @@ e_ConstMap.prototype.emsg = e_sugarHandler
 
 e_makeMap = {
     emsg_fromPairs_1: function (pairs) {
-      // XXX coerce list and each pair
+      pairs = e_array_guard.emsg_coerce_2(pairs, e_throw)
       var keys = []
       var values = []
       for (var i = 0; i < pairs.length; i++) {
-        keys.push(pairs[i][0])
-        values.push(pairs[i][1])
+        var pair = e_array_guard.emsg_coerce_2(pairs[i], e_throw)
+        keys.push(pair[0])
+        values.push(pair[1])
       }
       return new e_ConstMap(keys, values)
     },
-    emsg_fromIteratable_3: function (iteratable, strict, optEjector) {
+    emsg_fromIteratable_3: function (iteratable, strict, ejector) {
+      strict = e_boolean_guard.emsg_coerce_2(strict, e_throw)
       var keys = []
       var values = []
       e_call(iteratable, "iterate", [{ emsg_run_2: function (key, value) {
@@ -280,7 +294,7 @@ Array.prototype.emsg_iterate_1 = function (assocFunc) {
 }
 
 Number.prototype.emsg_op__cmp_1 = function (other) {
-  // XXX coerce other to number
+  other = e_number_guard.emsg_coerce_2(other, e_throw)
   if (this < other) {
     return -1.0
   } else if (this > other) {
@@ -290,34 +304,29 @@ Number.prototype.emsg_op__cmp_1 = function (other) {
   }
 }
 
-var e_NumberGuard = {
-  emsg_coerce_2: function (sp, ej) { return sp; }, // XXX actually coerce
-  toString: function () { return "<E number guard>" },
-}
-
 Number.prototype.emsg_max_1 = function (other) {
-  other = e_NumberGuard.emsg_coerce_2(other, e_throw)
-  return this < other ? other : this
+  other = e_number_guard.emsg_coerce_2(other, e_throw)
+  return this < other ? other : this.valueOf()
 }
-Number.prototype.emsg_belowZero_0   = function () { return this <  0 }
-Number.prototype.emsg_atMostZero_0  = function () { return this <= 0 }
-Number.prototype.emsg_isZero_0      = function () { return this == 0 }
-Number.prototype.emsg_atLeastZero_0 = function () { return this >= 0 }
-Number.prototype.emsg_aboveZero_0   = function () { return this >  0 }
+Number.prototype.emsg_belowZero_0   = function () { return this <   0 }
+Number.prototype.emsg_atMostZero_0  = function () { return this <=  0 }
+Number.prototype.emsg_isZero_0      = function () { return this === 0 }
+Number.prototype.emsg_atLeastZero_0 = function () { return this >=  0 }
+Number.prototype.emsg_aboveZero_0   = function () { return this >   0 }
 Number.prototype.emsg_add_1 = function (other) {
-  return this + e_NumberGuard.emsg_coerce_2(other, e_throw)
+  return this + e_number_guard.emsg_coerce_2(other, e_throw)
 }
 Number.prototype.emsg_subtract_1 = function (other) {
-  return this - e_NumberGuard.emsg_coerce_2(other, e_throw)
+  return this - e_number_guard.emsg_coerce_2(other, e_throw)
 }
 Number.prototype.emsg_multiply_1 = function (other) {
-  return this * e_NumberGuard.emsg_coerce_2(other, e_throw)
+  return this * e_number_guard.emsg_coerce_2(other, e_throw)
 }
 Number.prototype.emsg_approxDivide_1 = function (other) {
-  return this / e_NumberGuard.emsg_coerce_2(other, e_throw)
+  return this / e_number_guard.emsg_coerce_2(other, e_throw)
 }
 Number.prototype.emsg_floorDivide_1 = function (other) {
-  return Math.floor(this / e_NumberGuard.emsg_coerce_2(other, e_throw))
+  return Math.floor(this / e_number_guard.emsg_coerce_2(other, e_throw))
 }
 
 Boolean.prototype.emsg_not_0 = function () { return !this }
@@ -330,9 +339,9 @@ var e_slot_throw = e_makeFinalSlot(e_throw)
 var e_slot_E = e_makeFinalSlot(e_e)
 var e_slot_true = e_makeFinalSlot(true)
 var e_slot_false = e_makeFinalSlot(false)
-var e_slot_null = e_makeFinalSlot(null)
+var e_slot_null = e_makeFinalSlot(e_null)
 var e_slot___makeList = e_makeFinalSlot({
-  emsg: function(verb,args) { if (verb == "run") {return args} else {e_noSuchMethod(this, verb, args)}}})
+  emsg: function(verb,args) { if (verb === "run") {return args} else {e_noSuchMethod(this, verb, args)}}})
 var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
 var e_slot___loop = e_makeFinalSlot({
     emsg_run_1: function (body) {
@@ -391,7 +400,7 @@ e_document_writer = {
         e_js_writebreak()
     },
     emsg: function(verb,args) {
-      if (verb == "print") {
+      if (verb === "print") {
         var i
         for (i = 0; i < args.length; i++) e_document_writer.emsg_print_1(args[i]);
       } else {
