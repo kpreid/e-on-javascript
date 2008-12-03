@@ -9,15 +9,41 @@ function e_js_writebreak() {
 
 // --- core ---
 function e_noSuchMethod(r, v, a) {
-  throw("no such method error: " + r.constructor.toString().split("\n")[0] + " " + r + "." + v + a)
+  var ty = typeof(r)
+  if (ty === "object") {
+    ty = r.constructor.toString().split("\n")[0]
+  }
+  throw("no such method error: " + ty + " " + r + "." + v + "(" + a + ")")
 }
 
 // called whenever an E-called object doesn't have an appropriately named JS method
-function e_NoJsMethod(r, v, a) {
-  if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine
-    return r.emsg(v, a)
+function e_NoJsMethod(r, verb, args) {
+  if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine as they are considered broken refs
+    // If r has an emsg method, 
+    return r.emsg(verb, args)
   } else {
-    return e_noSuchMethod(r, v, a)
+    if (cajita === undefined) {
+      return e_noSuchMethod(r, verb, args)
+    } else if (verb === "get" && args.length === 1) { // Cajita
+      var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
+      return cajita.readPub(r, propName)
+    } else if (verb === "put" && args.length === 2) { // Cajita
+      var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
+      cajita.setPub(r, propName, args[1])
+      return e_null
+    } else if (verb === "run") { // Cajita
+      return cajita.callPub(r, "call", [cajita.USELESS, args])
+    } else {
+      if (verb[0] === ".") { // dot escapes special verbs, has no other meaning
+        verb = verb.slice(1)
+      }
+      var method = cajita.readPub(r, verb)
+      if (method === undefined) {
+        return e_noSuchMethod(r, verb, args)
+      } else {
+        return cajita.callPub(method, "apply", [r, args])
+      }
+    }
   }
 }
 
@@ -147,15 +173,19 @@ function e_sugarHandler(verb, args) {
 // --- library --- 
 
 function e_wrapJsFunction(jsFunction) {
-  return {
-    emsg: function (verb, args) {
-      if (verb === "run") {
-        return jsFunction(args)
-      } else {
-        e_noSuchMethod(this, verb, args) // XXX miranda
-      }
-    },
-    toString: function () { return jsFunction.toString() + " as E function" },
+  if (cajita === undefined) {
+    return {
+      emsg: function (verb, args) {
+        if (verb === "run") {
+          return jsFunction(args)
+        } else {
+          e_noSuchMethod(this, verb, args) // XXX miranda?
+        }
+      },
+      toString: function () { return jsFunction.toString() + " as E function" },
+    }
+  } else {
+    return ___.func(jsFunction)
   }
 }
 
@@ -169,7 +199,7 @@ var e_e = {
     // XXX return value
     setTimeout(function () { e_call(r, v, a) }, 0)
   },
-  emsg_toString_1: function (what) { return what.toString() }, // XXX hook into real printing
+  emsg_toString_1: function (what) { return "" + what }, // XXX hook into real printing
   toString: function () { return "<E>" },
 }
 
@@ -347,6 +377,9 @@ var e_slot___loop = e_makeFinalSlot({
     emsg_run_1: function (body) {
         // XXX should coerce to boolean
         while (e_call(body, "run", [])); }})
+var e_slot___makeInt = e_makeFinalSlot({
+    emsg_run_1: function (str) {
+        return parseInt(e_string_guard.emsg_coerce_2(str, e_throw)); }})
 
 var e_slot_import__uriGetter = e_makeFinalSlot({
   emsg_get_1: function (what) {
@@ -413,5 +446,13 @@ var e_slot_stdout = e_makeFinalSlot(e_document_writer)
 
 var e_slot_timer = e_makeFinalSlot({
   emsg_now_0: function () { return new Date().getTime() },
+  emsg_whenPast_2: function (time, efunc) {
+    time = e_number_guard.emsg_coerce_2(time, e_throw)
+    // XXX return result as promise
+    var offset = time - (new Date().getTime())
+    //alert([time,(new Date().getTime()),offset])
+    setTimeout(function () { e_call(efunc, 'run', []) },
+               offset)
+  },
   toString: function () { return "<timer>" },
 })
