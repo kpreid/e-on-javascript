@@ -234,13 +234,30 @@ def targetKit := jsKit
 
 def compilePat
 
+def escapeIdentifier(var ident) {
+  # XXX E ought to have a regexp s/// operation
+  var escapedIdent := ""
+  while (ident.size().aboveZero()) {
+    switch (ident) {
+      match rx`(@okay[a-zA-Z0-9_]+)(@rest.*)` {
+        ident := rest
+        escapedIdent += okay
+      }
+      match rx`(@notOkay.)(@rest.*)` {
+        ident := rest
+        require(notOkay.size() <=> 1)
+        escapedIdent += "$" + notOkay[0].asInteger().toString(16) + "$"
+      }
+    }
+  }
+  return escapedIdent
+}
+
 def convertVerb(verb, arity) {
-  # XXX escape/mangle funky chars
-  return `emsg_${verb}_$arity`
+  return `emsg_${escapeIdentifier(verb)}_$arity`
 }
 def convertNoun(noun) {
-  # XXX funky chars
-  return makeSV(EXPR, `e_slot_$noun`, [])
+  return makeSV(EXPR, `e_slot_${escapeIdentifier(noun)}`, [])
 }
 
 def tempifyJsExpr(temp__Resolver, sv) {
