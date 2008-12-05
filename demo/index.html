@@ -1,0 +1,49 @@
+<html><head>
+  <title>E-on-JavaScript Demo</title>
+  <script src="../serve/e.js"></script>
+
+  <script src="../serve/import/org/erights/e/elang/expand/__bind.js"></script>
+  <script src="../serve/import/org/erights/e/elang/expand/comparer.js"></script>
+  <script src="../serve/import/org/erights/e/elang/interp/require.js"></script>
+  <script src="../serve/import/org/erights/e/elib/ref/RefAuthor.js"></script>
+  <script src="../serve/import/org/erights/e/elib/tables/constMapSugar.js"></script>
+  <script src="../serve/import/org/erights/e/elib/tables/mapSugar.js"></script>
+
+  <script src="../caja/src/com/google/caja/cajita.js"></script>
+  <script src="../caja/ant-lib/com/google/caja/plugin/css-defs.js"></script>
+  <script src="../caja/ant-lib/com/google/caja/plugin/html4-defs.js"></script>
+  <script src="../caja/src/com/google/caja/plugin/html-emitter.js"></script>
+  <script src="../caja/src/com/google/caja/plugin/html-sanitizer.js"></script>
+  <script src="../caja/src/com/google/caja/plugin/unicode.js"></script>
+  <script src="../caja/src/com/google/caja/plugin/domita.js"></script>
+
+</head><body>
+  <div id="output"></div>
+  
+  <form><fieldset><legend>Simple</legend>
+    <input type="text" id="counter" value=1>
+    <input type="button" value="Increment" onclick="var e = document.getElementById('counter');e.value = e_call(e_call(e_slot_simpleEHandler, 'get', []), 'increment', [e.value])">
+  </fieldset></form>
+  
+  <form><fieldset><legend>Domita</legend>
+    <input type="text" id="text-demodoc" value=1>
+    <input type="button" value="Increment" onclick="e_call(e_call(e_slot_domitaEHandler, 'get', []), 'increment', [])">
+    <input type="button" value="Start Timer" onclick="e_call(e_call(e_slot_domitaEHandler, 'get', []), 'schedule', [new Date().getTime()])">
+  </fieldset></form>
+  
+  <script>
+  testImports = {}
+  attachDocumentStub(
+       '-demodoc',
+       {
+         rewrite:
+             function (uri, mimeType) {
+               alert("bogus rewrite")
+             }
+       },
+       testImports);
+  e_slot_docita = e_makeFinalSlot(testImports["document"])
+  </script>
+
+  <script src="demo.js"></script>
+</body></html>
