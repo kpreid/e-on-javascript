@@ -203,6 +203,15 @@ var e_e = {
   toString: function () { return "<E>" },
 }
 
+// constructor for character object wrappers
+function e_Character(charString) {
+  this.string = charString
+}
+e_Character.prototype.toString = function () {
+  return "<E character '" + this.string + "'>"
+}
+// XX character methods
+
 function e_ForwardingRef(target) {
   this.target = target
 }
@@ -252,7 +261,7 @@ function e_magicLazySlot(thunk) {
 }
 
 function makeFlexList() {
-  return {toString: function () { return "makeFlexList" }}
+  return {toString: function () { return "<flexList>" }}
 }
 
 // ConstMap constructor
@@ -312,8 +321,19 @@ e_makeMap = {
     toString: function () { return "<E makeMap>" },
 }
 
+Array.prototype.emsg_multiply_1 = function (times) {
+  other = e_number_guard.emsg_coerce_2(times, e_throw)
+  var res = []
+  for (var i = 0; i < times; i++) {
+    res = res.concat(this)
+  }
+  return res
+}
+Array.prototype.emsg_snapshot_0 = function () {
+  return this
+}
 Array.prototype.emsg_diverge_0 = function () {
-  makeFlexList()
+  return makeFlexList(this.slice())
 }
 Array.prototype.emsg_iterate_1 = function (assocFunc) {
   var l = this.length

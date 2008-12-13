@@ -89,7 +89,7 @@ def jsKit {
   to literal(v) {
     return switch (v) {
       match s :String { makeSV(EXPR, `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`, [].asSet()) }
-      #match c :char { jsKit.callf(makeSV("e__makeCharacter", [].asSet()), [jsKit.literal(E.toString(v))]) }
+      match c :char   { jsKit.new(jsKit.nativeVar("e_Character"), [jsKit.literal(E.toString(v))]) }
       match n :int     { makeSV(EXPR, `($n)`, [].asSet()) }
       match n :float64 { makeSV(EXPR, `($n)`, [].asSet()) }
     }
