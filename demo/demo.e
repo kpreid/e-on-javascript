@@ -15,8 +15,8 @@ def domitaEHandler {
     #alert("scheduling after" + E.toString(t))
     timer.whenPast(t + 1000, fn {
       #alert("running")
-      domitaHandler.increment()
-      domitaHandler.schedule(t + 1000)
+      domitaEHandler.increment()
+      domitaEHandler.schedule(t + 1000)
     })
     #alert("scheduled")
   }
