@@ -1,0 +1,42 @@
+/* --- defaults --- */
+
+.updoc-step {
+  border-left: 2px solid gray;
+  padding-left: .5em;
+  background: white;
+  color: black;
+}
+.updoc-output-exp { color: gray; }
+.updoc-output-got { color: red; }
+
+/* --- not-yet-run --- */
+
+.updoc-step.updoc-pending {
+  border-left: dotted black;
+}
+
+/* --- running --- */
+
+.updoc-step.updoc-running {
+  color: black;
+  background: #EEE;
+}
+
+/* --- success --- */
+
+.updoc-step.updoc-matched {
+  color: black;
+  border-color: #EEE;
+}
+.updoc-step.updoc-matched .updoc-output-got { color: black; }
+.updoc-step.updoc-matched .updoc-output-exp { display: none; }
+
+/* --- failure --- */
+
+.updoc-step.updoc-mismatch {
+  color: black;
+  border-color: red;
+}
+.updoc-step.updoc-mismatch .updoc-output-got { color: red; }
+.updoc-step.updoc-mismatch .updoc-output-exp { color: green; }
+

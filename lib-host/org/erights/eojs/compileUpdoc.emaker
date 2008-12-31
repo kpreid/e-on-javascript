@@ -1,0 +1,140 @@
+#!/usr/bin/env rune -cpa lib-host
+
+# Copyright 2008 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+pragma.syntax("0.9")
+pragma.enable("accumulator")
+
+def compiler := <import:org.erights.eojs.compiler>
+def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
+def parse := <elang:syntax.makeEParser>.run
+def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
+
+def htmlesc(t :String) {
+  return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+}
+def jsQuote(t :String) {
+  # XXX should use either jsKit (not accessible outside of the compiler currently) or Term-tree (currently has inaccuracy bugs wrt newlines) to generate real JS rather than relying on similarity of E string syntax
+  return E.toQuote(t).replaceAll("\n", "\\n")
+}
+
+def compileUpdoc {
+  /** The prefix is used for element IDs and JS identifiers. */
+  to toHTMLFragment(progress, prefix, updocSource) {
+    def updoc := makeUpdocParser.parsePlain(updocSource)
+
+    def term`script(inVats(@_*),
+                    [inVat("home",
+                           [@steps*])])` := updoc
+
+    def envVar := `${prefix}_eenv`
+
+    return `$\
+      <script>
+        var $envVar = e_makeSafeEnv()
+      </script>
+
+      ${ accum "" for i => step in steps { _ + {
+        progress.print(".")
+        progress.flush()
+        def term`test(@source,
+                      {@answers*})` := step
+
+        def body := escape syntaxFail {
+          def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
+
+          var senv := compiler.importEnv(staticSafeEnv, ast.staticScope())
+          def js := compiler.assignResult("res", ast, &senv)
+          if (js.indexOf1("</") != -1) {
+            throw("Shouldn't happen: found </ in generated JS")
+          }
+
+          `
+            function run_$i() {
+              var res;
+              ${compiler.import(ast.staticScope(), envVar)}
+              $js;
+              ${compiler."export"(envVar, envVar, ast.staticScope(), senv)};
+              return res;
+            }
+
+            function chain_$i() {
+              updoc_runStep(${jsQuote(prefix)}, run_$i, $i, ${prefix}_expected_$i)
+              setTimeout(chain_${i+1}, 1);
+            }
+          `
+        } catch syntaxError {
+          `
+            function chain_$i() {
+              updoc_runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
+              setTimeout(chain_${i+1}, 1);
+            }
+          `
+        }
+        ` 
+          <div class="updoc-step updoc-pending" id="$prefix-step-$i">
+          <pre class="updoc-expr">? ${htmlesc(source)}</pre>
+          <script>
+            var ${prefix}_expected_$i = [${", ".rjoin(
+              accum [] for term`@k:@{v :String}` in answers {
+                _.with(`[${jsQuote(k.getTag().getTagName())},
+                         ${jsQuote(v)}]`)
+              }
+            )}]
+
+            $body
+          </script>
+          ${accum "" for answer in answers { _ + {
+            def term`@{label :String}: @{text :String}` := answer
+            `
+            <pre class="updoc-output-exp" id="$prefix-expect-$i"># ${htmlesc(E.toString(label))}: ${htmlesc(E.toString(text))}</pre>
+            `
+          }}}
+          <pre class="updoc-output-got" id="$prefix-output-$i"></pre>
+        </div>$\n`
+      }}}
+      <script>
+        function chain_${steps.size()} () {
+          // all done!
+        }
+        setTimeout(chain_0, 1)
+      </script>
+    `
+  }
+  to toHTMLDocument(progress, dir, updocSource) {
+    return `
+      <html><head>
+        <title>EoJS Converted Updoc</title>
+        ${compileUpdoc.getHTMLHeadInclusion(dir)}
+      </head><body>
+        <div id="output"></div>
+        ${compileUpdoc.toHTMLFragment(progress, "upd1", updocSource)}
+      </body></html>
+    `
+  }
+  # XXX the following list of emakers is static, not configurable or computed
+  to getHTMLHeadInclusion(dir) { return `$\
+    <!-- E runtime -->
+    <script src="$dir/e.js"></script>
+   
+    <!-- Updoc runtime -->
+    <script src="$dir/updoc-driver.js"></script>
+    <link rel="stylesheet" href="$dir/updoc.css">
+   
+    <!-- Libraries possibly used by updoc code -->
+    <script src="$dir/import/org/cubik/cle/sugarRoot.js"></script>
+    <script src="$dir/import/org/erights/e/elang/expand/__bind.js"></script>
+    <script src="$dir/import/org/erights/e/elang/expand/comparer.js"></script>
+    <script src="$dir/import/org/erights/e/elang/interp/require.js"></script>
+    <script src="$dir/import/org/erights/e/elib/ref/RefAuthor.js"></script>
+    <script src="$dir/import/org/erights/e/elib/slot/Same.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/constMapSugar.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/listSugar.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/makeEqualizer.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/makeFlexList.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/makeFlexListShell.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/makeFlexMap.js"></script>
+    <script src="$dir/import/org/erights/e/elib/tables/mapSugar.js"></script>
+  `}
+}
