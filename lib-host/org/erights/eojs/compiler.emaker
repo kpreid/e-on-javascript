@@ -1,12 +1,8 @@
 # Copyright 2008 Kevin Reid, under the terms of the MIT X license
 # found at http://www.opensource.org/licenses/mit-license.html ................
 
-pragma.enable("easy-return")
-pragma.disable("explicit-result-guard")
-
+pragma.syntax("0.9")
 pragma.enable("accumulator")
-pragma.enable("verb-curry")
-pragma.enable("anon-lambda")
 
 def makeCallExpr := <elang:evm.makeCallExpr>
 def makeSlotExpr := <elang:evm.makeSlotExpr>
@@ -88,7 +84,15 @@ def jsKit {
   }
   to literal(v) {
     return switch (v) {
-      match s :String { makeSV(EXPR, `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`, [].asSet()) }
+      match s :String { 
+        def quoted := `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`
+        # for compatibility with JS-in-HTML
+        makeSV(EXPR, if (quoted.indexOf("</") != -1) {
+          `(${quoted.replaceAll("</", "<'+'/")})`
+        } else {
+          quoted
+        }, [].asSet())
+      }
       match c :char   { jsKit.new(jsKit.nativeVar("e_Character"), [jsKit.literal(E.toString(v))]) }
       match n :int     { makeSV(EXPR, `($n)`, [].asSet()) }
       match n :float64 { makeSV(EXPR, `($n)`, [].asSet()) }
@@ -289,22 +293,51 @@ def genCall(recip :SV, verb :String, args :List[SV]) {
   ))
 }
 
+# --- compile-time env ---
 
-def compile(expr, out) {
+def emptySenv {
+  to get(noun) {
+    throw(`unbound in eojs: $noun`)
+  }
+}
+
+def withSlot(next, defNoun :String) {
+  def sbinding {
+    to genGetSlot() { return convertNoun(defNoun) }
+  }
+  
+  return def outerSenv {
+    to __printOn(out) {
+      out.print(defNoun, ":", next)
+    }
+    to get(noun :String) {
+      return if (noun == defNoun) {
+        sbinding
+      } else {
+        next.get(noun)
+      }
+    }
+  }
+}
+
+# --- actual compiler ---
+
+def compile(expr, out, &senv) {
   #traceln(`compiling $expr`)
   return expr.welcome(def visitor {
     to visitLiteralExpr(_, v) { return out(jsKit.literal(v)) }
-    to visitNounExpr(expr, _) { return compile(makeCallExpr(null, (makeSlotExpr(null, expr, null)), "get", [], null), out) }
-    to visitSlotExpr(_, n) { return out(convertNoun(n.getName())) }
-    to visitSeqExpr(_, subs) { return targetKit.seq(map.v(fn sub { compile(sub, __identityFunc) }, subs(0, subs.size() - 1)) + [compile(subs.last(), out)]) }
+    to visitNounExpr(expr, _) { return compile(makeCallExpr(null, (makeSlotExpr(null, expr, null)), "get", [], null), out, &senv) }
+    to visitSlotExpr(_, n) { return out(senv[n.getName()].genGetSlot()) }
+    to visitSeqExpr(_, subs) { return targetKit.seq(map.v(fn sub { compile(sub, __identityFunc, &senv) }, subs(0, subs.size() - 1)) + [compile(subs.last(), out, &senv)]) }
     to visitCallExpr(_, rec, verb, args) {
       def [rtemp, rout] := targetKit.temp()
+      def recAssigner := compile(rec, rout, &senv)
       def [argTemps, argAssigners] := map2(fn arg {
         def [temp, tout] := targetKit.temp()
-        [temp, compile(arg, tout)]
+        [temp, compile(arg, tout, &senv)]
       }, args)
       return targetKit.seq(
-          [compile(rec, rout)] \
+          [recAssigner] \
         + argAssigners \
         + [out(genCall(rtemp, verb, argTemps))]
       )
@@ -312,9 +345,10 @@ def compile(expr, out) {
     }
     to visitDefineExpr(_, pat, ej, expr) {
       # XXX compile ej
+      # XXX this puts lhs in the scope of the rhs
       def [temp, tout] := targetKit.temp()
-      return targetKit.seq([compile(expr, tout),
-                          compilePat(pat, temp, null),
+      return targetKit.seq([compile(expr, tout, &senv),
+                          compilePat(pat, temp, null, &senv),
                           out(temp)])
     }
     to visitAssignExpr(_, lv, rv) {
@@ -322,8 +356,8 @@ def compile(expr, out) {
       def [ltemp, lout] := targetKit.temp()
       
       return targetKit.seq([
-        compile(rv, rout),
-        compile(makeSlotExpr(null, lv, null), lout),
+        compile(rv, rout, &senv),
+        compile(makeSlotExpr(null, lv, null), lout, &senv),
         genCall(ltemp, "put", [rtemp]),
         out(rtemp)
       ])
@@ -332,13 +366,15 @@ def compile(expr, out) {
       def exceptionName := targetKit.fresh()
       def ejectorMake := targetKit.new(targetKit.nativeVar("e_Ejector"), []) # XXX preserve name 
       def [ejectorObj, eout] := targetKit.temp()
-      return\
+      var senv_escape := senv
+      var senv_catch := senv
+      return \
       targetKit.seq([
         eout(ejectorMake),
         targetKit.tryCatch(
           targetKit.seq([
-            compilePat(pat, ejectorObj, null),
-            compile(body, out),
+            compilePat(pat, ejectorObj, null, &senv_escape),
+            compile(body, out, &senv_escape),
           ]),
           exceptionName,
           targetKit."if"(
@@ -346,35 +382,31 @@ def compile(expr, out) {
             if (cp == null) {
               out(targetKit.prop(exceptionName, "e_RetVal"))
             } else {
-              targetKit.seq([ compilePat(cp, targetKit.prop(exceptionName, "e_RetVal"), null), compile(cb, out) ])
+              targetKit.seq([ compilePat(cp, targetKit.prop(exceptionName, "e_RetVal"), null, &senv_catch), compile(cb, out, &senv_catch) ])
             },
             targetKit.callf(targetKit.nativeVar("throw"), [exceptionName]))) # XXX throw isn't a function, this shouldn't work
       ])
     }
     to visitFinallyExpr(_, body, cleanup) {
-      return compile(body, out) # XXX fix
+      return compile(body, out, &senv) # XXX fix
     }
     to visitCatchExpr(_, body, catchPatt, catchBody) {
-      return compile(body, out) # XXX fix
+      return compile(body, out, &senv) # XXX fix
     }
     to visitHideExpr(_, body) {
-      return targetKit.scope(compile(body, out))
-    }
-    to visitMatchBindExpr(_, specimen, pattern) {
-      # XXX ejector
-      def [temp, tout] := targetKit.temp()
-      return targetKit.seq([compile(specimen, tout),
-                          compilePat(pattern, temp, Ref.broken("missing ejector stuff")),
-                          out(targetKit.nativeVar("true"))])
+      var senv2 := senv
+      return targetKit.scope(compile(body, out, &senv2))
     }
     to visitIfExpr(_, cond, then, els) {
       # XXX coerce to boolean
       def [ctemp, cout] := targetKit.temp()
+      var senv_then := senv
+      var senv_els := senv
       return targetKit.seq([
-        compile(cond, cout),
+        compile(cond, cout, &senv_then),
         targetKit."if"(ctemp,
-          compile(then, out),
-          compile(els, out)),
+          compile(then, out, &senv_then),
+          compile(els, out, &senv_els)),
       ])
     }
     to visitObjectExpr(_, docComment, name, auditors, script) {
@@ -392,6 +424,9 @@ def compile(expr, out) {
       
       def [objtemp, objOut] := targetKit.temp()
       
+      # update senv before compiling the body so that the object sees its own name
+      def patCode := compilePat(name, objtemp, null, &senv)
+      
       var jsmethods := [
         [targetKit.literal("toString"),
           targetKit.func([], targetKit."return"(targetKit.literal(`<E object $nameString>`)))]
@@ -399,29 +434,32 @@ def compile(expr, out) {
       jsmethods := accum jsmethods for m in script.getOptMethods() {
         _.with([targetKit.literal(convertVerb(m.getVerb(), m.getPatterns().size())),
                 {
+                  var senv_method := senv
                   # XXX result guard
                   def atemps := accum [] for _ in m.getPatterns() { _.with(targetKit.fresh()) }
-                  def cv := compile(m.getBody(), jsKit."return")
+                  def patternCode := map.kv(fn i,p { compilePat(p, atemps[i], null, &senv_method) }, m.getPatterns())
+                  def cv := compile(m.getBody(), jsKit."return", &senv_method)
                   if (cv !~ sv :SV) { throw(`cv is $cv from ${m.getBody()}`) }
                   targetKit.func(atemps,
-                    targetKit.seq(map.kv(fn i,p { compilePat(p, atemps[i], null) }, m.getPatterns()) + [cv]))
+                    targetKit.seq(patternCode.with(cv)))
               }])
       }
       
       if ((def matchers := script.getMatchers()).size().aboveZero()) {
-        def [m] := matchers # XXX support >1
+        var senv_matcher := senv
+        def [m] + _ := matchers # XXX support >1
         def verbt := targetKit.fresh()
         def argt := targetKit.fresh()
         jsmethods with= [targetKit.literal("emsg"),
           targetKit.func([verbt, argt],
             targetKit.seq([
-              compilePat(m.getPattern(), targetKit.array([verbt, argt]), null), # XXX handle match failure
-              compile(m.getBody(), jsKit."return")]))]
+              compilePat(m.getPattern(), targetKit.array([verbt, argt]), null, &senv_matcher), # XXX handle match failure
+              compile(m.getBody(), jsKit."return", &senv_matcher)]))]
       }
       
       return targetKit.seq([
         objOut(jsKit.object(jsmethods)),
-        compilePat(name, objtemp, null),
+        patCode,
         out(objtemp)
       ])
     }
@@ -434,14 +472,15 @@ def compile(expr, out) {
   })
 }
 
-def compileBindingPattern(ne, guardE, slotCompile, slotCompileGuarded) {
+def compileBindingPattern(ne, guardE, slotCompile, slotCompileGuarded, &senv) {
   def slotvar := convertNoun(ne.getName()).outz()
+  senv := withSlot(senv, ne.getName())
   if (guardE == null) {
     return targetKit.assign(slotvar, slotCompile()).withTemp(slotvar)
   } else {
     def [gtemp, gout] := targetKit.temp()
     return targetKit.seq([
-      compile(guardE, gout),
+      compile(guardE, gout, &senv),
       targetKit.assign(slotvar, slotCompileGuarded(gtemp)).withTemp(slotvar)
     ])
   }
@@ -451,7 +490,7 @@ def cMakeFinalSlot := targetKit.nativeVar(`e_makeFinalSlot`)
 def cMakeVarSlot := targetKit.nativeVar(`e_makeVarSlot`)
 def cMakeGuardedSlot := targetKit.nativeVar(`e_makeGuardedSlot`)
 
-bind compilePat(pat, specimen, optEjSpec) {
+bind compilePat(pat, specimen, optEjSpec, &senv) {
   return pat.welcome(def visitor {
     to visitIgnorePattern(_, guardE) {
       if (guardE == null) {
@@ -459,7 +498,7 @@ bind compilePat(pat, specimen, optEjSpec) {
       } else {
         def [gtemp, gout] := targetKit.temp()
         return targetKit.seq([
-          compile(guardE, gout),
+          compile(guardE, gout, &senv),
           genCall(gtemp, "coerce", [specimen, targetKit.nativeVar("e_throw")])
         ])
       }
@@ -467,46 +506,72 @@ bind compilePat(pat, specimen, optEjSpec) {
     to visitFinalPattern(_, ne, guardE) {
       return compileBindingPattern(ne, guardE, 
         fn { targetKit.callf(cMakeFinalSlot, [specimen]) },
-        fn guard { genCall(cMakeFinalSlot, "run", [genCall(guard, "coerce", [specimen, targetKit.nativeVar("e_throw")])]) })
+        fn guard { targetKit.callf(cMakeFinalSlot, [genCall(guard, "coerce", [specimen, targetKit.nativeVar("e_throw")])]) }, &senv)
     }
     to visitVarPattern(_, ne, guardE) {
       return compileBindingPattern(ne, guardE,
         fn { targetKit.callf(cMakeVarSlot, [specimen]) },
-        fn guard { targetKit.callf(cMakeGuardedSlot, [specimen, guard]) })
+        fn guard { targetKit.callf(cMakeGuardedSlot, [specimen, guard]) }, &senv)
     }
     to visitSlotPattern(_, ne, guardE) {
       return compileBindingPattern(ne, guardE, 
         fn { specimen },
-        fn guard { genCall(guard, "coerce", [specimen, guard]) })
+        fn guard { genCall(guard, "coerce", [specimen, guard]) }, &senv)
     }
     to visitListPattern(_, subs) {
       # XXX coerce, length
       return targetKit.seq(accum [] for i => sub in subs { _.with(
-        compilePat(sub, targetKit.subscript(specimen, targetKit.literal(i)), optEjSpec)
+        compilePat(sub, targetKit.subscript(specimen, targetKit.literal(i)), optEjSpec, &senv)
       )})
     }
     to visitViaPattern(_, func, subpatt) {
       def [fTemp, fOut] := targetKit.temp()
       def [subSpecimenTemp, subSpecOut] := targetKit.temp()
       return targetKit.seq([
-        compile(func, fOut),
+        compile(func, fOut, &senv),
         subSpecOut(genCall(fTemp, "run", [specimen, targetKit.nativeVar("e_throw")])), # XXX use optEjSpec
-        compilePat(subpatt, subSpecimenTemp, optEjSpec)
+        compilePat(subpatt, subSpecimenTemp, optEjSpec, &senv)
       ])
     }
   })
 }
 
-def outerCompile{
-  to run(expr) {
-    return unsv(compile(expr, __identityFunc))
+def outerCompile {
+  to getEmptyStaticEnv() {
+    return emptySenv
   }
-  to returning(expr) {
-    return unsv(compile(expr, jsKit."return"))
+  to getBindEnvMaker() {
+    return withSlot
+  }
+  to run(expr, &senv) {
+    return unsv(compile(expr, __identityFunc, &senv))
+  }
+  to assignResult(name, expr, &senv) {
+    return unsv(compile(expr, fn e { jsKit.assign(name, e) }, &senv))
+  }
+  to returning(expr, &senv) {
+    return unsv(compile(expr, jsKit."return", &senv))
+  }
+  to importEnv(assumedSenv, staticScope) {
+    var senv := assumedSenv
+    for name => _ in staticScope.namesUsed() {
+      senv := withSlot(senv, name)
+    }
+    return senv
+  }
+  to import(staticScope, envVar) {
+    return unsv(jsKit.seq(accum [] for name => _ in staticScope.namesUsed() {
+      _.with(
+        def slotvar := convertNoun(name).outz()
+        jsKit.assign(slotvar, genCall(jsKit.nativeVar(envVar), "getSlot", [jsKit.literal(name)])).withTemp(slotvar))
+    }))
+  }
+  /** generate JS code which generates a runtime env from local bindings in 'senv' affected by 'staticScope' starting from 'initialEnvVar' */
+  to "export"(initialEnvVar :String, finalEnvVar :String, staticScope, senv) {
+    var expr := jsKit.nativeVar(initialEnvVar)
+    for name => _ in staticScope.outNames() {
+      expr := genCall(expr, "withSlot", [jsKit.literal(name), senv[name].genGetSlot()])
+    }
+    return unsv(jsKit.assign(finalEnvVar, expr))
   }
 }
-
-#def [filename] := interp.getArgs()
-#def expr := <elang:syntax.makeEParser>.run(<file>[filename].getTwine())
-#
-#println(outerCompile(expr))

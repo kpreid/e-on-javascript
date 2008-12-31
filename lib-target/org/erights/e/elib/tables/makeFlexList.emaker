@@ -1,0 +1,134 @@
+# Copyright 2005-2007 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# XXX copied from EoCL with various bits stripped out -- to b e reconciled
+
+pragma.syntax("0.9")
+
+def makeArray := <import:org.cubik.cle.prim.makeArray>
+def makeFlexListShell := <import:org.erights.e.elib.tables.makeFlexListShell>
+def listSugar := <import:org.erights.e.elib.tables.listSugar>
+
+#interface FlexList guards FlexListStamp {} # XXX methods?
+
+def resizeFactor := 2
+
+def makeFlexList implements ExitViaHere {
+  to asType() {
+    #return FlexList
+    throw("stubbed out")
+  }
+
+  /** Make a FlexList from a one-dimensional array, which must have a fill pointer and be adjustable. */
+  to _fromArray(array, valueGuard) {
+    require(array.getAdjustable(), fn{E.toString(array) + " must be adjustable"})
+    def flexList
+    def impl {
+      method get(i :int) { 
+        try {
+          # elt is specified to provide range checking against the fill pointer
+          array.elt(i)
+        } catch p {
+          if (i >= array.getFillPointer()) {
+            listSugar.listIndexError(flexList, i)
+          } else {
+            throw(p)
+          }
+        }
+      }
+      method put(i, new :valueGuard) :void {
+        def size := array.getFillPointer()
+        if (i < size) {
+          array.setElt(i, new)
+        } else if (i == size) {
+          array.vectorPushExtend(new)
+        } else {
+          throw("put index out of bounds: " + E.toString(i) + " > " + E.toString(size))
+        }
+      }
+      method size() { array.getFillPointer() }
+      method setSize(newSize) :void {
+        # XXX should shrink array?
+        def oldSize := array.getFillPointer()
+        def dim := array.getDimension(0)
+        if (dim < newSize) {
+          array.adjust([newSize * resizeFactor], valueGuard.getTheTrivialValue())
+        }
+        if (newSize < oldSize) {
+          array.fill(valueGuard.getTheTrivialValue(), newSize, oldSize)
+        }
+        array.setFillPointer(newSize)
+        if (newSize > oldSize) {
+          array.fill(valueGuard.getTheTrivialValue(), oldSize, newSize)
+        }
+      }
+      
+      method replace(thisStart, thisEnd, other, otherStart, otherEnd) {
+        # The FlexListShell handles the range checking for this - XXX oddity
+
+        def oldSize := array.getFillPointer()
+        def deltaSize := (otherEnd - otherStart) - (thisEnd - thisStart)
+        def newSize := oldSize + deltaSize
+        def newEnd := thisEnd + deltaSize
+        def copyOffset := thisStart - otherStart
+        
+        # Ensure the physical size is sufficient
+        if (newSize > array.getDimension(0)) {
+          #impl.setSize(newSize)
+          # filling with arbitrary allowable value
+          # XXX should not leave user values sitting around keeping things live (that is, the resizeFactor)
+          array.adjust([newSize * resizeFactor], other[0])
+        }
+        
+        # Move existing elements after the replaced section
+        array.setFillPointer(oldSize.max(newSize))
+        array.replace(array, newEnd, newSize, thisEnd, oldSize)
+        
+        # Copy new elements in
+        # XXX optimize case where the other is known to have already-coerced elements
+        # for i in otherStart..!otherEnd { # can't use this because the region implementation uses FlexList#push
+        var i := otherStart
+        while (i < otherEnd) {
+          array.setElt(i + copyOffset, other[i] :valueGuard)
+          i += 1
+        }
+        
+        # Set final fill pointer
+        array.setFillPointer(newSize)
+        
+      }
+      
+      method snapshot() {
+        # XXX do the-array-is-the-snapshot optimization
+        array.snapshotVector()
+      }
+    }
+    bind flexList extends makeFlexListShell(flexList, impl, valueGuard) {
+      to __printOn(out :TextWriter) {
+        # XXX call to printer's syntax
+        flexList.printOn("[", ", ", "].diverge()", out)
+      }
+      
+      method __optUncall() {
+        [flexList.snapshot(), "diverge", [valueGuard]]
+      }
+    }
+    return flexList
+  }
+
+  to diverge(source, valueGuard) {
+    def uncoercedContents :List := source.snapshot()
+    def size := uncoercedContents.size()
+    def array := makeArray.fromSequence(uncoercedContents, true)
+    if (valueGuard != any) {
+      var i := 0
+      while (i < size) {
+        array.setElt(i, array.elt(i) :valueGuard)
+        i += 1
+      }
+    }
+    return makeFlexList._fromArray(array, valueGuard)
+  }
+}
+
+#makeFlexList :DeepFrozen

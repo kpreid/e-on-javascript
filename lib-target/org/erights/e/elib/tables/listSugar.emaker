@@ -1,0 +1,111 @@
+# Copyright 2005-2007 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# XXX yet another copied file
+
+pragma.syntax("0.9")
+
+def Same := <import:org.erights.e.elib.slot.Same>
+def sugarRoot := <import:org.cubik.cle.sugarRoot>
+
+def listSugar
+
+# XXX I expect to move this to a separate emaker.
+def makeReadOnlyList implements EventuallyDeepFrozen {
+
+  to run(rwImpl) {
+    return def roList {
+      method get(i) { rwImpl[i] }
+      method size() { rwImpl.size() }
+      method snapshot() { rwImpl.snapshot() }
+      to __printOn(out :TextWriter) :void {
+        out.printSame(rwImpl)
+        out.write(".readOnly()")
+      }
+      match [v,a] { E.call(listSugar, "instance_" + v, [roList] + a) }
+    }
+  }
+}
+
+def childResponsibility(self, mverb) {
+  throw(E.toQuote(self) + " failed to implement " + mverb)
+}
+
+bind listSugar extends sugarRoot implements EventuallyDeepFrozen, ExitViaHere {
+  to instance_get(self, i) { childResponsibility(self, "get/1") }
+  to instance_size(self) { childResponsibility(self, "size/0") }
+  to instance_valueType(self) { childResponsibility(self, "valueType/0") }
+
+  # XXX nonatomic
+  to instance_last(self) { 
+    def size := self.size()
+    return try { 
+      self.get(size.previous())
+    } catch _ ? (size.isZero()) {
+      # XXX unnecessary printing
+      throw(E.toQuote(self) + " has no last element")
+    }
+  }
+
+  to instance_iterate(self, assocFunc) {
+    var i := 0
+    def size := self.size()
+    while (i < size) {
+      assocFunc(i, self[i])
+      i += 1
+    }
+  }
+  
+  to instance_run(self,start) { return self.run(start, self.size()) } #XXX nonatomic
+  to instance_run(self, start :int, endd :int) {
+    return __makeList.fromValuesOf(
+      def _ { to iterate(assocFunc) {
+        # could use the for-in-.. here but I want to keep options open
+        var i := start
+        while (i < endd) {
+          assocFunc(null, self[i])
+          i += 1}}})
+  }
+  
+  to instance_snapshot(self) {
+    return __makeList.fromValuesOf(self)
+  }
+  
+  to instance_diverge(self) {
+    return self.diverge(any)
+  }
+  /** Returns a FlexList with the same initial contents as this, with the specified element guard. */
+  to instance_diverge(self, valueGuard) {
+    return <import:org.erights.e.elib.tables.makeFlexList>.diverge(self, valueGuard)
+  }
+  
+  to instance_readOnly(self) {
+    return makeReadOnlyList(self)
+  }
+  
+  to instance_startOf(self, sublist) { return self.startOf(sublist, 0) }
+  
+  # depends on snapshots implementing sort
+  to instance_sort(self)           { return self.snapshot().sort()         }
+  to instance_sort(self, compFunc) { return self.snapshot().sort(compFunc) }
+  
+  to instance_printOn(self, openS, sepS, closeS, out :TextWriter) {
+    out.write(openS)
+    var first := true
+    for value in self {
+      if (first) {
+        first := false
+      } else {
+        out.write(sepS)
+      }
+      out.quote(value)
+    }
+    out.write(closeS)
+  }
+
+  /** Not a sugar method; to be used by get/1 implementations for too-high indexes. */
+  to listIndexError(self, index) {
+    # XXX printing exception
+    throw("list index " + E.toString(index) + " is out of range for size " + E.toString(self.size()) + " list " + E.toQuote(self))
+  }
+}

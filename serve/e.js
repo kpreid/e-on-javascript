@@ -143,6 +143,11 @@ e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   }
 }
 
+var e_any_guard = {
+  toString: function () { "<e_any_guard>" },
+  emsg_coerce_2: function (specimen, ejector) { return specimen },
+}
+
 var e_boolean_guard = new e_NativeGuard("boolean")
 var e_number_guard  = new e_NativeGuard("number")
 var e_string_guard  = new e_NativeGuard("string")
@@ -162,6 +167,8 @@ var e_fqnTable = {}
 var e_sugarCache = {}
 function e_sugarHandler(verb, args) {
   var c = this.constructor
+  //e_js_write("sugar " + e_sugarCache[c] + " " + this + "." + verb + "/" + args.length + "(" + args.toString() + ")")
+  //e_js_writebreak()
   if (e_sugarCache[c] === undefined) {
     e_sugarCache[c] = e_slot_import__uriGetter.emsg_get_0().emsg_get_1(e_fqnTable[c] + "Sugar")
   }
@@ -233,6 +240,11 @@ function e_makePromise() {
 
 var e_throw = {
   toString: function () { return "<E throw>" },
+}
+
+var e_equalizer = {
+  toString: function () { return "<Equalizer>" },
+  
 }
 
 function e_makeFinalSlot(value) {
@@ -329,11 +341,14 @@ Array.prototype.emsg_multiply_1 = function (times) {
   }
   return res
 }
+Array.prototype.emsg_size_0 = function () {
+  return this.length
+}
 Array.prototype.emsg_snapshot_0 = function () {
   return this
 }
 Array.prototype.emsg_diverge_0 = function () {
-  return makeFlexList(this.slice())
+  return e_call(e_maker_org_$erights_$e_$elib_$tables_$makeFlexList(), "diverge", [this, e_any_guard])
 }
 Array.prototype.emsg_iterate_1 = function (assocFunc) {
   var l = this.length
@@ -390,6 +405,7 @@ var e_slot_E = e_makeFinalSlot(e_e)
 var e_slot_true = e_makeFinalSlot(true)
 var e_slot_false = e_makeFinalSlot(false)
 var e_slot_null = e_makeFinalSlot(e_null)
+var e_slot_any = e_makeFinalSlot(e_any_guard)
 var e_slot___makeList = e_makeFinalSlot({
   emsg: function(verb,args) { if (verb === "run") {return args} else {e_noSuchMethod(this, verb, args)}}})
 var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
@@ -429,12 +445,80 @@ e_slot___bind     = e_magicLazySlot(function () { return e_maker_org_$erights_$e
 e_slot___comparer = e_magicLazySlot(function () { return e_maker_org_$erights_$e_$elang_$expand_$comparer() })
 e_slot_require    = e_magicLazySlot(function () { return e_maker_org_$erights_$e_$elang_$interp_$require () })
 
+e_slot_List       = e_makeFinalSlot(e_array_guard)
+e_slot_int        = e_makeFinalSlot(e_number_guard)
+e_slot_String     = e_makeFinalSlot(e_string_guard)
+
+/**
+ * Are x and y not observably distinguishable? Copied 2008-12-31 from
+ * http://code.google.com/p/google-caja/issues/detail?id=934
+ */
+function identical(x, y) {
+  if (x === y) {
+    // 0 === -0, but they are not identical
+    return x !== 0 || 1/x === 1/y;
+  } else {
+    // NaN !== NaN, but they are identical
+    return x !== x && y !== y;
+  }
+}
+e_slot___equalizer = e_magicLazySlot(function () {
+  return e_call(
+    e_maker_org_$erights_$e_$elib_$tables_$makeEqualizer(),
+    "run",
+    [e_wrapJsFunction(identical)])
+})
+
+
+// XXX doesn't support bindings for GBA
+function e_Env(table) {
+  this.table = table
+}
+e_Env.prototype.emsg_getSlot_1 = function (noun) {
+  return this.table[noun]
+}
+e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
+  var newTable = {}
+  for (var n in this.table)
+    newTable[n] = this.table[n]
+  newTable[insertNoun] = slot
+  return new e_Env(newTable)
+}
+
+function e_makeSafeEnv() {
+  return new e_Env({
+    __makeList: e_slot___makeList,
+  })
+}
+
 // --- primitive imports --
 
 // XXX stub, and bad fqn
-e_maker_org_$cubik_$cle_$prim_$Throwable = function () { return {
+var e_maker_org_$cubik_$cle_$prim_$Throwable = function () { return {
   toString: function () { return "Throwable" },
 } }
+
+// XXX for the borrowed makeFlexList
+function e_Array(array) {
+  this.array = array
+}
+e_Array.prototype.emsg_getAdjustable_0 = function () { return false }
+e_Array.prototype.emsg_getFillPointer_0 = function () { return this.array.length }
+e_Array.prototype.emsg_getDimension_1 = function (d) { return this.array.length }
+e_Array.prototype.emsg_elt_1 = function (i) { return this.array[i] }
+
+var e_makeCLArray = {
+  emsg_fromSequence_2: function (seq, adjustable) {
+    return new e_Array(seq.slice()) // XXX should use iterate
+  },
+  toString: function () { return "<makeCLArray>" },
+}
+var e_maker_org_$cubik_$cle_$prim_$makeArray = function () { return e_makeCLArray }
+
+var e_makeSameGuard = {
+  toString: function () { return "Same" },
+}
+var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard }
 
 // --- privileged scope library -- XXX shouldn't be visible to all code
 

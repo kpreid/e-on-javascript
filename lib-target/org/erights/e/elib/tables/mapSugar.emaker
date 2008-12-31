@@ -10,7 +10,7 @@ def sugarRoot {} # XXX stubbing
 
 def mapSugar
 
-#def makeFlexMap :DeepFrozen := <import:org.erights.e.elib.tables.makeFlexMap>
+def makeFlexMap := <import:org.erights.e.elib.tables.makeFlexMap>
 
 # XXX I expect to move this to a separate emaker.
 def makeReadOnlyMap {

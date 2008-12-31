@@ -3,6 +3,7 @@
 
 def NullPointerException := <type:java.lang.NullPointerException>
 def compiler := <import:org.erights.eojs.compiler>
+def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
 
 def mangleToIdentifier(text) { # XXX more thorough mangling, consistent with runtime and compiler
@@ -26,21 +27,22 @@ def compileLibraries(dotNames, sources, destination, report, overwrite) {
     if (sourceFile == null) {
       report.println(`didn't find input file`)
     } else {
-      if (destFile.exists() && !overwrite) { # XXX compare dates
-        report.println(`exists`)
-      
-        continue
+      if (destFile.exists() && !overwrite) {
+        if (!sourceFile.__respondsTo("lastModified", 0) || destFile.lastModified() > sourceFile.lastModified()) {
+          report.println(`source older`)
+          continue
+        }
       }
       report.println(`compiling$\n    $sourceFile -> $destFile`)
       try {
         destination[{def rx`(@dirname.*/)[^/]+` := slashName; dirname}].mkdirs(null)
         destFile.setText(`
             e_maker_${mangleToIdentifier(dotName)} = function () {
-                ${compiler.returning(parse(sourceFile.getTwine()))}
+                ${compiler.returning(parse(sourceFile.getTwine()), {var e := staticSafeEnv; &e})}
             };
         `)
       } catch p {
-        report.println(`Failed to compile: $p`)
+        report.println(`Failed to compile: $p${p.eStack()}$\n---`)
       }
     }
   }

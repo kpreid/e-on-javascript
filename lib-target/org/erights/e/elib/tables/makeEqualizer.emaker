@@ -1,0 +1,24 @@
+# Copyright 2008 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# THIS IS NEW CODE. It is not copied from any other E implementation.
+
+pragma.syntax("0.9")
+
+def makeEqualizer(shallowEq) {
+  def equalizer {
+    to sameEver(a, b) {
+      def answer := shallowEq(equalizer.optSame(a, b), true)
+      if (shallowEq(answer, null)) {
+        throw("Equalizer.sameEver: not settled")
+      } else {
+        return answer
+      }
+    }
+    to sameYet(a, b) { return shallowEq(equalizer.optSame(a, b), true) }
+    to optSame(a, b) {
+      return "oops"
+    }
+  }
+  return equalizer
+}
