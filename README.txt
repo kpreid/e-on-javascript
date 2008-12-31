@@ -5,9 +5,7 @@ This is E-on-JavaScript.
 
 It is entirely written in E and JavaScript, and it compiles E code into JavaScript which should run in a typical web browser.
 
-It is rather sketchy: various parts are specific to the test cases I've been working on, and it has several protection flaws:
-  - the code generator is not robust against funky identifier names
-  - there is no proper safeScope; all code has access to stdout and timer, at least.
+It is rather sketchy: various parts are specific to the test cases I've been working on, and it has at least one protection flaw: the code generator is not robust against funky identifier names.
 
 --- Setting up
 
@@ -52,14 +50,32 @@ It is rather sketchy: various parts are specific to the test cases I've been wor
 (XXX This ought to have a nice command, but doesn't.)
 
   ? def eParser := <elang:syntax.makeEParser>
+  > def compiler := <import:org.erights.eojs.compiler>
+  > def makeStaticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>
+  > def withSlot := compiler.getBindEnvMaker()
+  
+  ? var env := makeStaticSafeEnv(compiler)
+  > # ... modify env to supply authorities to your program ...
   > <file:out.js>.setText(
-  >   <import:org.erights.eojs.compiler>(eParser(<file:program.e>.getTwine())))
+  >   compiler(eParser(<file:program.e>.getTwine()), &env))
 
 5. Serve your application.
 
   The HTML file must have appropriate (relative or absolute) URLs to e.js (supplied), compiled emaker .js files, and your compiled E program.
 
+--- Updoc
+
+An Updoc file can be converted into a HTML document which runs its code and displays the results inline. Example:
+
+  ? def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
+  
+  ? <file:test/foo.html>.setText(
+  >    compileUpdoc.toHTMLDocument(stderr, "../serve",
+  >                                <file:foo.updoc>.getTwine()))
+
 --- Implementation notes
+
+If Cajita is loaded, then JavaScript objects' properties are visible to E code, subject to Cajita taming.
 
 Since JavaScript null and undefined throw when called, E's null is a distinct object (e_null), and JS null and undefined are considered kinds of broken reference.
 

@@ -22,7 +22,7 @@ function e_NoJsMethod(r, verb, args) {
     // If r has an emsg method, 
     return r.emsg(verb, args)
   } else {
-    if (cajita === undefined) {
+    if (window["cajita"] === undefined) {
       return e_noSuchMethod(r, verb, args)
     } else if (verb === "get" && args.length === 1) { // Cajita
       var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
@@ -180,7 +180,7 @@ function e_sugarHandler(verb, args) {
 // --- library --- 
 
 function e_wrapJsFunction(jsFunction) {
-  if (cajita === undefined) {
+  if (window["cajita"] === undefined) {
     return {
       emsg: function (verb, args) {
         if (verb === "run") {
@@ -348,7 +348,7 @@ Array.prototype.emsg_snapshot_0 = function () {
   return this
 }
 Array.prototype.emsg_diverge_0 = function () {
-  return e_call(e_maker_org_$erights_$e_$elib_$tables_$makeFlexList(), "diverge", [this, e_any_guard])
+  return e_call(e_import("org.erights.e.elib.tables.makeFlexList"), "diverge", [this, e_any_guard])
 }
 Array.prototype.emsg_iterate_1 = function (assocFunc) {
   var l = this.length
@@ -417,21 +417,25 @@ var e_slot___makeInt = e_makeFinalSlot({
     emsg_run_1: function (str) {
         return parseInt(e_string_guard.emsg_coerce_2(str, e_throw)); }})
 
-var e_slot_import__uriGetter = e_makeFinalSlot({
-  emsg_get_1: function (what) {
-    // XXX inadequate escaping
-    var compiledFn = window["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
-    if (compiledFn === undefined) {
+function e_import(what) {
+  what = e_string_guard.emsg_coerce_2(what, e_throw)
+  
+  // XXX inadequate escaping
+  var compiledFn = window["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
+  if (compiledFn === undefined) {
       throw ("Import not found: " + what)
-    } else {
-      return compiledFn()
-    }
-  },
+  } else {
+    return compiledFn()
+  }
+}
+
+var e_slot_import__uriGetter = e_makeFinalSlot({
+  emsg_get_1: e_import,
   toString: function () { return "<import:*>" },
 })
 
 e_slot_Ref = e_magicLazySlot(function () {
-  return e_call(e_maker_org_$erights_$e_$elib_$ref_$RefAuthor(), "run",
+  return e_call(e_import("org.erights.e.elib.ref.RefAuthor"), "run",
            [e_wrapJsFunction(e_makePromise),
             e_wrapJsFunction(e_refShorten), 
             e_wrapJsFunction(e_refState), e_wrapJsFunction(e_refIsResolved),
@@ -441,9 +445,9 @@ e_slot_Ref = e_magicLazySlot(function () {
             "BROKEN", "NEAR", "EVENTUAL", "Bogus DeepFrozenStamp"])
 })
 
-e_slot___bind     = e_magicLazySlot(function () { return e_maker_org_$erights_$e_$elang_$expand_$_u_ubind() })
-e_slot___comparer = e_magicLazySlot(function () { return e_maker_org_$erights_$e_$elang_$expand_$comparer() })
-e_slot_require    = e_magicLazySlot(function () { return e_maker_org_$erights_$e_$elang_$interp_$require () })
+e_slot___bind     = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.__bind") })
+e_slot___comparer = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.comparer") })
+e_slot_require    = e_magicLazySlot(function () { return e_import("org.erights.e.elang.interp.require") })
 
 e_slot_List       = e_makeFinalSlot(e_array_guard)
 e_slot_int        = e_makeFinalSlot(e_number_guard)
@@ -464,7 +468,7 @@ function identical(x, y) {
 }
 e_slot___equalizer = e_magicLazySlot(function () {
   return e_call(
-    e_maker_org_$erights_$e_$elib_$tables_$makeEqualizer(),
+    e_import("org.erights.e.elib.tables.makeEqualizer"),
     "run",
     [e_wrapJsFunction(identical)])
 })
