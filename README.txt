@@ -79,6 +79,8 @@ If Cajita is loaded, then JavaScript objects' properties are visible to E code, 
 
 Since JavaScript null and undefined throw when called, E's null is a distinct object (e_null), and JS null and undefined are considered kinds of broken reference.
 
+All JS Arrays are considered ConstLists unless Cajita is loaded, in which case only Cajita-frozen Arrays are ConstLists.
+
 --- Todo list
 
 - A parser for E written in E or JavaScript (perhaps using OMeta http://www.cs.ucla.edu/~awarth/ometa/ )

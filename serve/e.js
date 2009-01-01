@@ -7,6 +7,20 @@ function e_js_writebreak() {
   document.getElementById("output").appendChild(document.createElement('br'))
 }
 
+// Stub for Cajita facilities if Cajita isn't loaded
+var e_cajita = window["cajita"] ? cajita : {
+  "snapshot": function (obj) {
+    if (obj instanceof Array) {
+      // without Cajita we consider all Arrays frozen
+      return obj
+    } else {
+      throw "e_cajita.snapshot not implemented in general (" + obj + ")"
+    }
+  },
+  "freeze": function (obj) { return e_cajita.snapshot(obj) },
+}
+
+// This variable contains every noun which is globally defined in JS and should be made part of the safeEnv.
 var e_safeEnvNames = []
 
 // --- core ---
@@ -22,7 +36,7 @@ function e_noSuchMethod(r, v, a) {
 function e_NoJsMethod(r, verb, args) {
   if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine as they are considered broken refs
     // If r has an emsg method, 
-    return r.emsg(verb, args)
+    return r.emsg(verb, e_cajita.freeze(args))
   } else {
     if (window["cajita"] === undefined) {
       return e_noSuchMethod(r, verb, args)
@@ -138,6 +152,7 @@ function e_ObjectGuard(constr) {
   this.constr = constr
 }
 e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
+  // Note that JavaScript code can create 'subclasses' of existing constructors, and create instances from existing constructors with arbitrarily modified properties/methods. HOWEVER, Cajita code can do neither, so checking instanceofs is sufficient in a world of Cajita code and relied-upon JavaScript code.
   if (specimen instanceof this.constr) {
     return specimen
   } else { // XXX miranda coerce
@@ -162,8 +177,20 @@ function e_getObjectGuard(constr) {
   return guard
 }
 
-// Note that JavaScript code can create 'subclasses' of existing constructors, and create instances from existing constructors with arbitrarily modified properties/methods. HOWEVER, Cajita code can do neither, so checking instanceofs is sufficient in a world of Cajita code and relied-upon JavaScript code.
 var e_array_guard  = e_getObjectGuard(Array)
+
+var e_ConstList_guard = {
+  toString: function () { "<ConstList>" },
+  emsg_coerce_2: function (specimen, ejector) {
+    specimen = e_array_guard.coerce(specimen, ejector)
+    // XXX kludge -- a later Cajita will have cajita.isFrozen; then we can just write that instead of mentioning ___
+    if (!(window["cajita"]) || ___.isFrozen(specimen)) {
+      return specimen
+    } else {
+      throw ("list is not const: " + specimen)
+    }
+  },
+}
 
 var e_fqnTable = {}
 var e_sugarCache = {}
@@ -237,7 +264,7 @@ function e_makePromise() {
     },
     toString: function () { return "<resolver>" },
   }
-  return [promise, resolver]
+  return e_cajita.freeze([promise, resolver])
 }
 
 var e_throw = {
@@ -310,11 +337,11 @@ e_ConstMap.prototype.emsg = e_sugarHandler
 
 e_makeMap = {
     emsg_fromPairs_1: function (pairs) {
-      pairs = e_array_guard.emsg_coerce_2(pairs, e_throw)
+      pairs = e_ConstList_guard.emsg_coerce_2(pairs, e_throw)
       var keys = []
       var values = []
       for (var i = 0; i < pairs.length; i++) {
-        var pair = e_array_guard.emsg_coerce_2(pairs[i], e_throw)
+        var pair = e_ConstList_guard.emsg_coerce_2(pairs[i], e_throw)
         keys.push(pair[0])
         values.push(pair[1])
       }
@@ -341,13 +368,13 @@ Array.prototype.emsg_multiply_1 = function (times) {
   for (var i = 0; i < times; i++) {
     res = res.concat(this)
   }
-  return res
+  return e_cajita.freeze(res)
 }
 Array.prototype.emsg_size_0 = function () {
   return this.length
 }
 Array.prototype.emsg_snapshot_0 = function () {
-  return this
+  return e_cajita.snapshot(this)
 }
 Array.prototype.emsg_diverge_0 = function () {
   return e_call(e_import("org.erights.e.elib.tables.makeFlexList"), "diverge", [this, e_any_guard])
@@ -356,7 +383,7 @@ Array.prototype.emsg_iterate_1 = function (assocFunc) {
   var l = this.length
   //alert("got to iterate" + l + " for " + this)
   for (var i = 0; i < l; i++) {
-    e_call(assocFunc, "run", [i, this[i]])
+    e_call(assocFunc, "run", e_cajita.freeze([i, this[i]]))
   }
 }
 
@@ -415,14 +442,23 @@ e_safeEnvNames.push("false")
 e_safeEnvNames.push("null")
 e_safeEnvNames.push("any")
 var e_slot___makeList = e_makeFinalSlot({
-  emsg: function(verb,args) { if (verb === "run") {return args} else {e_noSuchMethod(this, verb, args)}}})
+  emsg: function (verb, args) { 
+    if (verb === "run") {
+      return e_cajita.freeze(args)
+    } else {
+      return e_noSuchMethod(this, verb, args)
+    }
+  },
+})
 e_safeEnvNames.push("__makeList")
 var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
 e_safeEnvNames.push("__makeMap")
 var e_slot___loop = e_makeFinalSlot({
-    emsg_run_1: function (body) {
-        // XXX should coerce to boolean
-        while (e_call(body, "run", [])); }})
+  emsg_run_1: function (body) {
+    // XXX should coerce to boolean
+    while (e_boolean_guard.emsg_coerce_2(e_call(body, "run", []), e_throw));
+  },
+})
 e_safeEnvNames.push("__loop")
 var e_slot___makeInt = e_makeFinalSlot({
     emsg_run_1: function (str) {
@@ -467,7 +503,7 @@ e_safeEnvNames.push("__bind")
 e_safeEnvNames.push("__comparer")
 e_safeEnvNames.push("require")
 
-e_slot_List       = e_makeFinalSlot(e_array_guard)
+e_slot_List       = e_makeFinalSlot(e_ConstList_guard)
 e_slot_int        = e_makeFinalSlot(e_number_guard) // XXX wrong
 e_slot_float64    = e_makeFinalSlot(e_number_guard)
 e_slot_String     = e_makeFinalSlot(e_string_guard)
