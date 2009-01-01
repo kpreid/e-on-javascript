@@ -431,18 +431,20 @@ def compile(expr, out, &senv) {
         [targetKit.literal("toString"),
           targetKit.func([], targetKit."return"(targetKit.literal(`<E object $nameString>`)))]
       ]
-      jsmethods := accum jsmethods for m in script.getOptMethods() {
-        _.with([targetKit.literal(convertVerb(m.getVerb(), m.getPatterns().size())),
-                {
-                  var senv_method := senv
-                  # XXX result guard
-                  def atemps := accum [] for _ in m.getPatterns() { _.with(targetKit.fresh()) }
-                  def patternCode := map.kv(fn i,p { compilePat(p, atemps[i], null, &senv_method) }, m.getPatterns())
-                  def cv := compile(m.getBody(), jsKit."return", &senv_method)
-                  if (cv !~ sv :SV) { throw(`cv is $cv from ${m.getBody()}`) }
-                  targetKit.func(atemps,
-                    targetKit.seq(patternCode.with(cv)))
-              }])
+      if (script.getOptMethods() != null) {
+        jsmethods := accum jsmethods for m in script.getOptMethods() {
+          _.with([targetKit.literal(convertVerb(m.getVerb(), m.getPatterns().size())),
+                  {
+                    var senv_method := senv
+                    # XXX result guard
+                    def atemps := accum [] for _ in m.getPatterns() { _.with(targetKit.fresh()) }
+                    def patternCode := map.kv(fn i,p { compilePat(p, atemps[i], null, &senv_method) }, m.getPatterns())
+                    def cv := compile(m.getBody(), jsKit."return", &senv_method)
+                    if (cv !~ sv :SV) { throw(`cv is $cv from ${m.getBody()}`) }
+                    targetKit.func(atemps,
+                      targetKit.seq(patternCode.with(cv)))
+                }])
+        }
       }
       
       if ((def matchers := script.getMatchers()).size().aboveZero()) {
@@ -464,10 +466,10 @@ def compile(expr, out, &senv) {
       ])
     }
     to visitMetaContextExpr(n) {
-      return out(targetKit.callf(targetKit.nativeVar("alert"), [targetKit.literal(`$n not implemented`)]))
+      return out(targetKit.callf(targetKit.nativeVar("e_makeMetaContext"), []))
     }
     to visitMetaStateExpr(n) {
-      return out(targetKit.callf(targetKit.nativeVar("alert"), [targetKit.literal(`$n not implemented`)]))
+      return out(targetKit.callf(targetKit.nativeVar("e_makeMetaState"), []))
     }
   })
 }
