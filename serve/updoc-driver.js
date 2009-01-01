@@ -2,7 +2,7 @@
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 function updoc_runSyntaxError(prefix, errorString, index, expectedAnswers) {
-  updoc_finishStep(prefix, index, [["syntax error","bah"]], expectedAnswers)
+  updoc_finishStep(prefix, index, [["syntax error", errorString]], expectedAnswers)
 }
 
 function updoc_runStep(prefix, func, index, expectedAnswers) {
@@ -11,8 +11,10 @@ function updoc_runStep(prefix, func, index, expectedAnswers) {
   
   var answers = []
   try {
-    var result = "" + func() + "\n"
-    answers.push(["value", result])
+    var result = func()
+    if (result !== e_null) {
+      answers.push(["value", "" + result + "\n"])
+    }
   } catch (e) {
     answers.push(["problem", "" + e])
   }
@@ -27,7 +29,7 @@ function updoc_finishStep(prefix, index, answers, expectedAnswers) {
   var match = expectedAnswers.length == answers.length
   for (var j = 0; j < answers.length; j++) {
     var a = answers[j]
-    stepOutput.appendChild(document.createTextNode('# actual ' + a[0] + ': ' + a[1]))
+    stepOutput.appendChild(document.createTextNode('# ' + a[0] + ': ' + a[1]))
     
     if (match && (   answers[j][0] != expectedAnswers[j][0]
                   || answers[j][1] != expectedAnswers[j][1])) {
