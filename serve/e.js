@@ -7,6 +7,8 @@ function e_js_writebreak() {
   document.getElementById("output").appendChild(document.createElement('br'))
 }
 
+var e_safeEnvNames = []
+
 // --- core ---
 function e_noSuchMethod(r, v, a) {
   var ty = typeof(r)
@@ -406,16 +408,26 @@ var e_slot_true = e_makeFinalSlot(true)
 var e_slot_false = e_makeFinalSlot(false)
 var e_slot_null = e_makeFinalSlot(e_null)
 var e_slot_any = e_makeFinalSlot(e_any_guard)
+e_safeEnvNames.push("throw")
+e_safeEnvNames.push("E")
+e_safeEnvNames.push("true")
+e_safeEnvNames.push("false")
+e_safeEnvNames.push("null")
+e_safeEnvNames.push("any")
 var e_slot___makeList = e_makeFinalSlot({
   emsg: function(verb,args) { if (verb === "run") {return args} else {e_noSuchMethod(this, verb, args)}}})
+e_safeEnvNames.push("__makeList")
 var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
+e_safeEnvNames.push("__makeMap")
 var e_slot___loop = e_makeFinalSlot({
     emsg_run_1: function (body) {
         // XXX should coerce to boolean
         while (e_call(body, "run", [])); }})
+e_safeEnvNames.push("__loop")
 var e_slot___makeInt = e_makeFinalSlot({
     emsg_run_1: function (str) {
         return parseInt(e_string_guard.emsg_coerce_2(str, e_throw)); }})
+e_safeEnvNames.push("__makeInt")
 
 function e_import(what) {
   what = e_string_guard.emsg_coerce_2(what, e_throw)
@@ -433,6 +445,8 @@ var e_slot_import__uriGetter = e_makeFinalSlot({
   emsg_get_1: e_import,
   toString: function () { return "<import:*>" },
 })
+e_safeEnvNames.push("import__uriGetter")
+
 
 e_slot_Ref = e_magicLazySlot(function () {
   return e_call(e_import("org.erights.e.elib.ref.RefAuthor"), "run",
@@ -444,14 +458,25 @@ e_slot_Ref = e_magicLazySlot(function () {
             e_wrapJsFunction(e_refOptSealedDispatch),
             "BROKEN", "NEAR", "EVENTUAL", "Bogus DeepFrozenStamp"])
 })
+e_safeEnvNames.push("Ref")
 
 e_slot___bind     = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.__bind") })
 e_slot___comparer = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.comparer") })
 e_slot_require    = e_magicLazySlot(function () { return e_import("org.erights.e.elang.interp.require") })
+e_safeEnvNames.push("__bind")
+e_safeEnvNames.push("__comparer")
+e_safeEnvNames.push("require")
 
 e_slot_List       = e_makeFinalSlot(e_array_guard)
-e_slot_int        = e_makeFinalSlot(e_number_guard)
+e_slot_int        = e_makeFinalSlot(e_number_guard) // XXX wrong
+e_slot_float64    = e_makeFinalSlot(e_number_guard)
 e_slot_String     = e_makeFinalSlot(e_string_guard)
+e_safeEnvNames.push("List")
+e_safeEnvNames.push("int")
+e_safeEnvNames.push("float64")
+e_safeEnvNames.push("String")
+e_maker_org_$cubik_$cle_$prim_$float64 = function () { return e_number_guard } // XXX wrong fqn
+e_maker_org_$cubik_$cle_$prim_$int = function () { return e_number_guard } // XXX wrong fqn, wrong guard
 
 /**
  * Are x and y not observably distinguishable? Copied 2008-12-31 from
@@ -472,6 +497,7 @@ e_slot___equalizer = e_magicLazySlot(function () {
     "run",
     [e_wrapJsFunction(identical)])
 })
+e_safeEnvNames.push("__equalizer")
 
 
 // XXX doesn't support bindings for GBA
@@ -479,7 +505,12 @@ function e_Env(table) {
   this.table = table
 }
 e_Env.prototype.emsg_getSlot_1 = function (noun) {
-  return this.table[noun]
+  if (noun in this.table) {
+    return this.table[noun]
+  } else {
+    // XXX wording for updoc compatibility, probably not the best
+    throw ("undefined variable: " + noun)
+  }
 }
 e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
   var newTable = {}
@@ -490,9 +521,11 @@ e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
 }
 
 function e_makeSafeEnv() {
-  return new e_Env({
-    __makeList: e_slot___makeList,
-  })
+  var table = {}
+  for (var i = 0; i < e_safeEnvNames.length; i++) {
+    table[e_safeEnvNames[i]] = window["e_slot_" + e_safeEnvNames[i]]
+  }
+  return new e_Env(table)
 }
 
 // --- primitive imports --
@@ -524,7 +557,7 @@ var e_makeSameGuard = {
 }
 var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard }
 
-// --- privileged scope library -- XXX shouldn't be visible to all code
+// --- privileged scope library -- XXX shouldn't be named by the global name convention
 
 var e_slot_alert = e_makeFinalSlot({emsg_run_1: function(v) {alert(v)}})
 var e_slot_document = e_makeFinalSlot({emsg_write_1: function(v) {document.write(v)}})
