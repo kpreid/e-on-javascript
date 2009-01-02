@@ -127,13 +127,12 @@ def compileUpdoc {
     <script src="$dir/import/org/erights/e/elang/expand/__bind.js"></script>
     <script src="$dir/import/org/erights/e/elang/expand/comparer.js"></script>
     <script src="$dir/import/org/erights/e/elang/interp/require.js"></script>
+    <script src="$dir/import/org/erights/e/elib/oldeio/makeTextWriter.js"></script>
     <script src="$dir/import/org/erights/e/elib/ref/RefAuthor.js"></script>
     <script src="$dir/import/org/erights/e/elib/slot/Same.js"></script>
     <script src="$dir/import/org/erights/e/elib/tables/constMapSugar.js"></script>
     <script src="$dir/import/org/erights/e/elib/tables/listSugar.js"></script>
     <script src="$dir/import/org/erights/e/elib/tables/makeEqualizer.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/makeFlexList.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/makeFlexListShell.js"></script>
     <script src="$dir/import/org/erights/e/elib/tables/makeFlexMap.js"></script>
     <script src="$dir/import/org/erights/e/elib/tables/mapSugar.js"></script>
   `}

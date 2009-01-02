@@ -322,6 +322,8 @@ def withSlot(next, defNoun :String) {
 
 # --- actual compiler ---
 
+def printOnMVerb := convertVerb("__printOn", 1)
+
 def compile(expr, out, &senv) {
   #traceln(`compiling $expr`)
   return expr.welcome(def visitor {
@@ -427,13 +429,20 @@ def compile(expr, out, &senv) {
       # update senv before compiling the body so that the object sees its own name
       def patCode := compilePat(name, objtemp, null, &senv)
       
+      # note methods defined so we can decide whether to provide miranda definitions
+      var seenMVerbs := [].asSet()
+      
       var jsmethods := [
         [targetKit.literal("toString"),
           targetKit.func([], targetKit."return"(targetKit.literal(`<E object $nameString>`)))]
       ]
       if (script.getOptMethods() != null) {
         jsmethods := accum jsmethods for m in script.getOptMethods() {
-          _.with([targetKit.literal(convertVerb(m.getVerb(), m.getPatterns().size())),
+          _.with([targetKit.literal(
+                    def mverb := convertVerb(m.getVerb(), m.getPatterns().size())
+                    seenMVerbs with= mverb
+                    mverb
+                  ),
                   {
                     var senv_method := senv
                     # XXX result guard
@@ -445,6 +454,13 @@ def compile(expr, out, &senv) {
                       targetKit.seq(patternCode.with(cv)))
                 }])
         }
+      }
+      
+      if (!seenMVerbs.contains(printOnMVerb)) {
+        def outV := targetKit.fresh()
+        jsmethods with= [targetKit.literal(printOnMVerb),
+                         targetKit.func([outV],
+                                        genCall(outV, "write", [targetKit.literal(`<$nameString>`)]))]
       }
       
       if ((def matchers := script.getMatchers()).size().aboveZero()) {

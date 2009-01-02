@@ -89,7 +89,7 @@ bind listSugar extends sugarRoot implements EventuallyDeepFrozen, ExitViaHere {
   to instance_sort(self)           { return self.snapshot().sort()         }
   to instance_sort(self, compFunc) { return self.snapshot().sort(compFunc) }
   
-  to instance_printOn(self, openS, sepS, closeS, out :TextWriter) {
+  to instance_printOn(self, openS, sepS, closeS, out) {
     out.write(openS)
     var first := true
     for value in self {

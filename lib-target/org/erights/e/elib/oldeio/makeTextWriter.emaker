@@ -1,0 +1,27 @@
+# Copyright 2009 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# This is new code to E-on-JS.
+
+def makeTextWriter {
+  to makeBufferingPair() {
+    def strings := [].diverge()
+    def buffer {
+      to snapshot() {
+        return "".rjoin(strings.snapshot())
+      }
+    }
+    def textWriter {
+      to write(text :String) {
+        strings.push(text)
+      }
+      to quote(x) {
+        x.__printOn(textWriter)
+      }
+      to print(x) {
+        x.__printOn(textWriter)
+      }
+    }
+    return [textWriter, buffer]
+  }
+}

@@ -1,4 +1,4 @@
-// Copyright 2008 Kevin Reid, under the terms of the MIT X license
+// Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 function e_js_write(text) {
   document.getElementById("output").appendChild(document.createTextNode(text))
@@ -78,6 +78,7 @@ function e_call(r, v, a) {
 }
 
 var e_null = {
+  emsg___printOn_1: function (out) { e_call(out, "write", ["null"]) },
   toString: function () { return "<E null>" },
 }
 
@@ -134,6 +135,11 @@ function e_refOptSealedDispatch(recip, brand) { // used only by RefAuthor so far
 
 // --- 2nd level core --- 
 
+// For use as a __printOn/1 implementation
+function e_toStringPrint(out) {
+  e_call(out, "write", [this.toString()])
+}
+
 function e_NativeGuard(typeStr) {
   this.typeStr = typeStr
 }
@@ -169,6 +175,8 @@ var e_boolean_guard = new e_NativeGuard("boolean")
 var e_number_guard  = new e_NativeGuard("number")
 var e_string_guard  = new e_NativeGuard("string")
 
+var e_int_guard = e_number_guard // XXX constrain to integers or make Integer wrapper
+
 function e_getObjectGuard(constr) {
   var guard = constr.e_guard
   if (guard === undefined) {
@@ -182,7 +190,7 @@ var e_array_guard  = e_getObjectGuard(Array)
 var e_ConstList_guard = {
   toString: function () { "<ConstList>" },
   emsg_coerce_2: function (specimen, ejector) {
-    specimen = e_array_guard.coerce(specimen, ejector)
+    specimen = e_array_guard.emsg_coerce_2(specimen, ejector)
     // XXX kludge -- a later Cajita will have cajita.isFrozen; then we can just write that instead of mentioning ___
     if (!(window["cajita"]) || ___.isFrozen(specimen)) {
       return specimen
@@ -192,18 +200,19 @@ var e_ConstList_guard = {
   },
 }
 
-var e_fqnTable = {}
+var e_fqnTable = {} // XXX this doesn't actually do the right thing since tables are not keyed by objects in JS
 var e_sugarCache = {}
 function e_sugarHandler(verb, args) {
-  var c = this.constructor
-  //e_js_write("sugar " + e_sugarCache[c] + " " + this + "." + verb + "/" + args.length + "(" + args.toString() + ")")
-  //e_js_writebreak()
-  if (e_sugarCache[c] === undefined) {
-    e_sugarCache[c] = e_slot_import__uriGetter.emsg_get_0().emsg_get_1(e_fqnTable[c] + "Sugar")
+  return e_sugarCall(e_fqnTable[this.constructor] + "Sugar")
+}
+function e_sugarCall(fqn, self, verb, args) {
+  // XXX when import caching works, drop this
+  if (e_sugarCache[fqn] === undefined) {
+    e_sugarCache[fqn] = e_import(fqn)
   }
   var sugarArgs = args.slice()
-  sugarArgs.unshift(this) // XXX better technique?
-  return e_call(e_sugarCache[c], "instance_" + verb, sugarArgs)
+  sugarArgs.unshift(self) // XXX better technique?
+  return e_call(e_sugarCache[fqn], "instance_" + verb, sugarArgs)
 }
 
 // --- library --- 
@@ -235,13 +244,28 @@ var e_e = {
     // XXX return value
     setTimeout(function () { e_call(r, v, a) }, 0)
   },
-  emsg_toString_1: function (what) { return "" + what }, // XXX hook into real printing
+  emsg_toString_1: function (what) { 
+    var tb = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", [])
+    e_call(tb[0], "print", [what])
+    return e_call(tb[1], "snapshot", [])
+  },
+  emsg_toQuote_1: function (what) { 
+    var tb = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", [])
+    e_call(tb[0], "quote", [what])
+    return e_call(tb[1], "snapshot", [])
+  },
   toString: function () { return "<E>" },
 }
 
 // constructor for character object wrappers
 function e_Character(charString) {
   this.string = charString
+}
+e_Character.prototype.emsg___printOn_1 = function (out) {
+  e_call(out, "write", ["'"])
+  // XXX escaping
+  e_call(out, "write", [this.string])
+  e_call(out, "write", ["'"])
 }
 e_Character.prototype.toString = function () {
   return "<E character '" + this.string + "'>"
@@ -362,6 +386,22 @@ e_makeMap = {
     toString: function () { return "<E makeMap>" },
 }
 
+Array.prototype.emsg = function (verb, args) {
+  return e_sugarCall("org.erights.e.elib.tables.listSugar", this, verb, args)
+}
+Array.prototype.emsg___printOn_1 = function (out) {
+  //e_call(out, "write", ["["])
+  //for (var i = 0; i < pairs.length; i++) {
+  //  if (i > 0) e_call(out, "write", [", "])
+  //  e_call(out, "write", ["["])
+  //}
+  //e_call(out, "write", ["]"])
+  if (!window["cajita"] || ___.isFrozen(this)) {
+    e_call(this, "printOn", ["[", ", ", "]", out])
+  } else {
+    e_call(out, "write", ["<JS array>"])
+  }
+}
 Array.prototype.emsg_multiply_1 = function (times) {
   other = e_number_guard.emsg_coerce_2(times, e_throw)
   var res = []
@@ -372,6 +412,9 @@ Array.prototype.emsg_multiply_1 = function (times) {
 }
 Array.prototype.emsg_size_0 = function () {
   return this.length
+}
+Array.prototype.emsg_get_1 = function (index) {
+  return this[e_int_guard.emsg_coerce_2(index, e_throw)]
 }
 Array.prototype.emsg_snapshot_0 = function () {
   return e_cajita.snapshot(this)
@@ -387,6 +430,7 @@ Array.prototype.emsg_iterate_1 = function (assocFunc) {
   }
 }
 
+Number.prototype.emsg___printOn_1 = e_toStringPrint
 Number.prototype.emsg_op__cmp_1 = function (other) {
   other = e_number_guard.emsg_coerce_2(other, e_throw)
   if (this < other) {
@@ -423,10 +467,20 @@ Number.prototype.emsg_floorDivide_1 = function (other) {
   return Math.floor(this / e_number_guard.emsg_coerce_2(other, e_throw))
 }
 
+Boolean.prototype.emsg___printOn_1 = e_toStringPrint
 Boolean.prototype.emsg_not_0 = function () { return !this }
 
+String.prototype.emsg___printOn_1 = function (out) {
+  e_call(out, "write", ['"'])
+  // XXX escaping
+  e_call(out, "write", [this])
+  e_call(out, "write", ['"'])
+}
 String.prototype.emsg_add_1 = function (other) {
   return this + e_string_guard.emsg_coerce_2(other, e_throw)
+}
+String.prototype.emsg_rjoin_1 = function (items) {
+  return e_ConstList_guard.emsg_coerce_2(items, e_throw).join(this)
 }
 
 var e_slot_throw = e_makeFinalSlot(e_throw)
@@ -504,7 +558,7 @@ e_safeEnvNames.push("__comparer")
 e_safeEnvNames.push("require")
 
 e_slot_List       = e_makeFinalSlot(e_ConstList_guard)
-e_slot_int        = e_makeFinalSlot(e_number_guard) // XXX wrong
+e_slot_int        = e_makeFinalSlot(e_int_guard)
 e_slot_float64    = e_makeFinalSlot(e_number_guard)
 e_slot_String     = e_makeFinalSlot(e_string_guard)
 e_safeEnvNames.push("List")
@@ -512,7 +566,7 @@ e_safeEnvNames.push("int")
 e_safeEnvNames.push("float64")
 e_safeEnvNames.push("String")
 e_maker_org_$cubik_$cle_$prim_$float64 = function () { return e_number_guard } // XXX wrong fqn
-e_maker_org_$cubik_$cle_$prim_$int = function () { return e_number_guard } // XXX wrong fqn, wrong guard
+e_maker_org_$cubik_$cle_$prim_$int = function () { return e_int_guard } // XXX wrong fqn
 
 /**
  * Are x and y not observably distinguishable? Copied 2008-12-31 from
@@ -571,22 +625,30 @@ var e_maker_org_$cubik_$cle_$prim_$Throwable = function () { return {
   toString: function () { return "Throwable" },
 } }
 
-// XXX for the borrowed makeFlexList
-function e_Array(array) {
+function e_FlexList(array, guard) {
   this.array = array
+  this.guard = guard
 }
-e_Array.prototype.emsg_getAdjustable_0 = function () { return false }
-e_Array.prototype.emsg_getFillPointer_0 = function () { return this.array.length }
-e_Array.prototype.emsg_getDimension_1 = function (d) { return this.array.length }
-e_Array.prototype.emsg_elt_1 = function (i) { return this.array[i] }
+e_FlexList.prototype.emsg_size_0 = function () { return this.array.length }
+e_FlexList.prototype.emsg_get_1 = function (i) { return this.array.emsg_get_1(i) }
+e_FlexList.prototype.emsg_snapshot_0 = function () { return this.array.slice() }
+e_FlexList.prototype.emsg_push_1 = function (v) { 
+  this.array.push(e_call(this.guard, "coerce", [v, e_throw]))
+}
 
-var e_makeCLArray = {
-  emsg_fromSequence_2: function (seq, adjustable) {
-    return new e_Array(seq.slice()) // XXX should use iterate
+var e_makeFlexList = {
+  emsg_diverge_2: function (source, valueGuard) {
+    var array = []
+    e_call(source, "iterate", [{
+      emsg_run_2: function (k, v) {
+        array.push(e_call(valueGuard, "coerce", [v, e_throw]))
+      },
+    }])
+    return new e_FlexList(array, valueGuard)
   },
-  toString: function () { return "<makeCLArray>" },
+  toString: function () { return "e_makeFlexList" },
 }
-var e_maker_org_$cubik_$cle_$prim_$makeArray = function () { return e_makeCLArray }
+var e_maker_org_$erights_$e_$elib_$tables_$makeFlexList = function () { return e_makeFlexList }
 
 var e_makeSameGuard = {
   toString: function () { return "Same" },

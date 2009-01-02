@@ -1,4 +1,4 @@
-// Copyright 2008 Kevin Reid, under the terms of the MIT X license
+// Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
 
 function updoc_runSyntaxError(prefix, errorString, index, expectedAnswers) {
@@ -14,7 +14,7 @@ function updoc_runStep(prefix, func, index, expectedAnswers) {
   try {
     var result = func()
     if (result !== e_null) {
-      answers.push(["value", "" + result + "\n"])
+      answers.push(["value", e_call(e_e, "toQuote", [result]) + "\n"])
     }
   } catch (exception) {
     // .stack is defined in Firefox
