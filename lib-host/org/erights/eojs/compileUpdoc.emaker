@@ -1,12 +1,11 @@
-#!/usr/bin/env rune -cpa lib-host
-
-# Copyright 2008 Kevin Reid, under the terms of the MIT X license
+# Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
 # found at http://www.opensource.org/licenses/mit-license.html ................
 
 pragma.syntax("0.9")
 pragma.enable("accumulator")
 
 def compiler := <import:org.erights.eojs.compiler>
+def commonEmakerList := <import:org.erights.eojs.commonEmakerList>
 def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
@@ -123,17 +122,8 @@ def compileUpdoc {
     <link rel="stylesheet" href="$dir/updoc.css">
    
     <!-- Libraries possibly used by updoc code -->
-    <script src="$dir/import/org/cubik/cle/sugarRoot.js"></script>
-    <script src="$dir/import/org/erights/e/elang/expand/__bind.js"></script>
-    <script src="$dir/import/org/erights/e/elang/expand/comparer.js"></script>
-    <script src="$dir/import/org/erights/e/elang/interp/require.js"></script>
-    <script src="$dir/import/org/erights/e/elib/oldeio/makeTextWriter.js"></script>
-    <script src="$dir/import/org/erights/e/elib/ref/RefAuthor.js"></script>
-    <script src="$dir/import/org/erights/e/elib/slot/Same.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/constMapSugar.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/listSugar.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/makeEqualizer.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/makeFlexMap.js"></script>
-    <script src="$dir/import/org/erights/e/elib/tables/mapSugar.js"></script>
+    ${"\n    ".rjoin(accum "" for emaker in commonEmakerList {
+      _.with(`<script src="$dir/import/${emaker.replaceAll(".", "/")}.js"></script>`)
+    })}
   `}
 }

@@ -1,4 +1,4 @@
-# Copyright 2008 Kevin Reid, under the terms of the MIT X license
+# Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
 # found at http://www.opensource.org/licenses/mit-license.html ................
 
 pragma.syntax("0.9")
@@ -9,8 +9,8 @@ def makeStaticSafeEnv(compiler) {
   
   var senv := emptySenv
   for name in [
-    # fundamental values
-    "null", "false", "true", "Infinity",
+    # fundamental values that don't go in LiteralExpr
+    "null", "false", "true", "NaN", "Infinity",
     
     # fundamental operators
     "E", "Ref", "throw",
@@ -18,21 +18,77 @@ def makeStaticSafeEnv(compiler) {
     "require",
     "simple__quasiParser",
     
-    # ???
+    # ??? why are these double underbar?
     "__makeInt",
+    "__makeFinalSlot",
+    "__makeCoercedSlot",
+    "__makeVarSlot",
+    "__makeGuardedSlot"
+    "__makeTwine",
+    "__Portrayal",
+    "__identityFunc",
+    
+    "__auditedBy",
+    "__eval",
     
     # guards
-    "any", "all",
+    "any", "all", "Not",
     "nullOk", "notNull", "void",
     "int", "boolean", "float64", "char", "String",
-    "List", "Map", "Tuple",
-    "Guard", "TextWriter",
-    "DeepFrozen", "pbc", "PassByCopy", "Selfless",
+    "Twine",
+    "List", "Map", "Tuple", "Set",
+    "Guard", "TextWriter", "EAudition", "Audition",
+    "Data", "DeepFrozen", "pbc", "PassByCopy", "Selfless", "StandardGraphExit", "Transparent",
+    "rcvr", "vow",
     
     # stuff for expansions
-    "__makeList", "__makeMap", "__equalizer", "__comparer",  "__loop", "__bind", "__makeOrderedSpace", "__Test", "__is", "__splitList",
+    "__makeList",
+    "__makeMap", 
+    "__equalizer", 
+    "__comparer", 
+    "__loop",
+    "__bind",
+    "__makeOrderedSpace",
+    "__Test",
+    "__is",
+    "__splitList",
+    "__validateFor",
+    "__bind",
+    "__booleanFlow",
+    "__comparer",
+    "__getPropertySlot",
+    "__makeVerbFacet",
+    "__mapEmpty",
+    "__mapExtract",
+    "__matchBind",
+    "__matchSame",
+    "__quasiMatcher",
+    "__slotToBinding",
+    "__splitList",
+    "__suchThat",
+    "__switchFailed",
+    "promiseAllFulfilled",
     
-    "import__uriGetter", "type__uriGetter",
+    # loaders
+    "import__uriGetter",
+    "resource__uriGetter",
+    "opaque__uriGetter",
+
+    "safeScope", # deprecate?
+    "safeEnv",
+    "EIO",
+    "help",
+    
+    # quasis
+    "simple__quasiParser",
+    "e__quasiParser",
+    "epatt__quasiParser",
+    "twine__quasiParser",
+    "rx__quasiParser",
+    "term__quasiParser",
+    
+    # tracing
+    "trace", "traceln",
     
   ] {
     senv := withSlot(senv, name)

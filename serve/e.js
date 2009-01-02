@@ -217,6 +217,10 @@ function e_sugarCall(fqn, self, verb, args) {
   return e_call(e_sugarCache[fqn], "instance_" + verb, sugarArgs)
 }
 
+function e_slotVarName(noun) {
+  return "e_slot_" + noun // XXX match escaping compiler uses
+}
+
 // --- library --- 
 
 function e_wrapJsFunction(jsFunction) {
@@ -552,12 +556,53 @@ e_slot_Ref = e_magicLazySlot(function () {
 })
 e_safeEnvNames.push("Ref")
 
-e_slot___bind     = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.__bind") })
-e_slot___comparer = e_magicLazySlot(function () { return e_import("org.erights.e.elang.expand.comparer") })
-e_slot_require    = e_magicLazySlot(function () { return e_import("org.erights.e.elang.interp.require") })
-e_safeEnvNames.push("__bind")
-e_safeEnvNames.push("__comparer")
-e_safeEnvNames.push("require")
+function e_addImportToSafe(noun, fqn) {
+  window[e_slotVarName(noun)] = e_magicLazySlot(function () {
+    return e_import(fqn)
+  })
+  e_safeEnvNames.push(noun)
+}
+
+// - All safeEnv members which are imports
+e_addImportToSafe("all", "org.erights.e.elib.slot.makeIntersectionGuard")
+e_addImportToSafe("Data", "org.erights.e.elib.serial.Data")
+e_addImportToSafe("DeepFrozen", "org.erights.e.elib.serial.DeepFrozen")
+e_addImportToSafe("EIO", "org.erights.e.elib.eio.EIO")
+e_addImportToSafe("elang__uriGetter", "org.erights.e.elang.*")
+e_addImportToSafe("elib__uriGetter", "org.erights.e.elib.*")
+e_addImportToSafe("epatt__quasiParser", "org.erights.e.elang.syntax.epatt__quasiParser")
+e_addImportToSafe("e__quasiParser", "org.erights.e.elang.syntax.e__quasiParser")
+e_addImportToSafe("Guard", "org.erights.e.elib.slot.Guard")
+e_addImportToSafe("help", "org.erights.e.elang.interp.help")
+e_addImportToSafe("Map", "org.erights.e.elib.slot.Map") // XXX inappropriate fqn?
+e_addImportToSafe("near", "org.erights.e.elib.slot.near")
+e_addImportToSafe("Not", "org.erights.e.elib.slot.makeNegatedGuard")
+e_addImportToSafe("notNull", "org.erights.e.elang.interp.notNull") // XXX inappropriate fqn?
+e_addImportToSafe("nullOk", "org.erights.e.elib.slot.nullOk")
+e_addImportToSafe("opaque__uriGetter", "org.erights.e.elib.serial.opaque__uriGetter")
+e_addImportToSafe("PassByCopy", "org.erights.e.elib.serial.PassByCopy")
+e_addImportToSafe("promiseAllFulfilled", "org.erights.e.elang.interp.promiseAllFulfilled")
+e_addImportToSafe("rcvr", "org.erights.e.elang.interp.rcvr") // XXX inappropriate fqn?
+e_addImportToSafe("require", "org.erights.e.elang.interp.require")
+e_addImportToSafe("rx__quasiParser", "org.erights.e.elang.interp.makePerlMatchMaker")
+e_addImportToSafe("Set", "org.erights.e.elib.tables.Set")
+e_addImportToSafe("simple__quasiParser", "org.quasiliteral.text.simple__quasiParser")
+e_addImportToSafe("Tuple", "org.erights.e.elib.slot.Tuple")
+e_addImportToSafe("vow", "org.erights.e.elang.interp.vow") // XXX inappropriate fqn?
+e_addImportToSafe("__bind"         , "org.erights.e.elang.expand.__bind")
+e_addImportToSafe("__booleanFlow"  , "org.erights.e.elang.expand.booleanFlow")
+e_addImportToSafe("__comparer"     , "org.erights.e.elang.expand.comparer")
+e_addImportToSafe("__makeOrderedSpace", "org.erights.e.elang.coord.makeOrderedSpace")
+e_addImportToSafe("__makeVerbFacet", "org.erights.e.elang.expand.__makeVerbFacet")
+e_addImportToSafe("__mapEmpty"     , "org.erights.e.elang.expand.viaEmptyMap")
+e_addImportToSafe("__mapExtract"   , "org.erights.e.elang.expand.makeViaExtractor")
+e_addImportToSafe("__matchSame"    , "org.erights.e.elang.expand.makeViaSame")
+e_addImportToSafe("__quasiMatcher" , "org.erights.e.elang.expand.makeViaQuasi")
+e_addImportToSafe("__slotToBinding", "org.erights.e.elang.expand.slotToBinding")
+e_addImportToSafe("__splitList"    , "org.erights.e.elang.expand.__splitList")
+e_addImportToSafe("__suchThat"     , "org.erights.e.elang.expand.suchThat")
+e_addImportToSafe("__switchFailed" , "org.erights.e.elang.expand.__switchFailed")
+
 
 e_slot_List       = e_makeFinalSlot(e_ConstList_guard)
 e_slot_int        = e_makeFinalSlot(e_int_guard)
@@ -615,7 +660,7 @@ e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
 function e_makeSafeEnv() {
   var table = {}
   for (var i = 0; i < e_safeEnvNames.length; i++) {
-    table[e_safeEnvNames[i]] = window["e_slot_" + e_safeEnvNames[i]]
+    table[e_safeEnvNames[i]] = window[e_slotVarName(e_safeEnvNames[i])]
   }
   return new e_Env(table)
 }

@@ -5,20 +5,7 @@
 
 def compileLibraries := <import:org.erights.eojs.compileLibraries>
 
-def libs := [
-  "org.cubik.cle.sugarRoot",
-  "org.erights.e.elang.expand.comparer",
-  "org.erights.e.elang.expand.__bind",
-  "org.erights.e.elang.interp.require",
-  "org.erights.e.elib.oldeio.makeTextWriter",
-  "org.erights.e.elib.ref.RefAuthor",
-  "org.erights.e.elib.slot.Same",
-  "org.erights.e.elib.tables.constMapSugar",
-  "org.erights.e.elib.tables.makeEqualizer",
-  "org.erights.e.elib.tables.listSugar",
-  "org.erights.e.elib.tables.mapSugar",
-  #"org.quasiliteral.text.simple__quasiParser",
-]
+def libs := <import:org.erights.eojs.commonEmakerList>
 
 def libSources := [
   <file:lib-target/>,
