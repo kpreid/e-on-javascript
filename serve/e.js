@@ -14,7 +14,7 @@ var e_cajita = window["cajita"] ? cajita : {
       // without Cajita we consider all Arrays frozen
       return obj
     } else {
-      throw "e_cajita.snapshot not implemented in general (" + obj + ")"
+      throw new Error("e_cajita.snapshot not implemented in general (" + obj + ")")
     }
   },
   "freeze": function (obj) { return e_cajita.snapshot(obj) },
@@ -29,7 +29,7 @@ function e_noSuchMethod(r, v, a) {
   if (ty === "object") {
     ty = r.constructor.toString().split("\n")[0]
   }
-  throw("no such method error: " + ty + " " + r + "." + v + "(" + a + ")")
+  throw new Error("no such method: " + ty + " " + r + "." + v + "(" + a + ")")
 }
 
 // called whenever an E-called object doesn't have an appropriately named JS method
@@ -144,7 +144,7 @@ e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (typeof(specimen) === this.typeStr) {
     return specimen
   } else { // XXX miranda coerce
-    throw("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr)
+    throw new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr)
   }
 }
 
@@ -156,7 +156,7 @@ e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (specimen instanceof this.constr) {
     return specimen
   } else { // XXX miranda coerce
-    throw("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0])) // kluge
+    throw new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0])) // kluge
   }
 }
 
@@ -187,7 +187,7 @@ var e_ConstList_guard = {
     if (!(window["cajita"]) || ___.isFrozen(specimen)) {
       return specimen
     } else {
-      throw ("list is not const: " + specimen)
+      throw new Error("list is not const: " + specimen)
     }
   },
 }
@@ -471,7 +471,7 @@ function e_import(what) {
   // XXX inadequate escaping
   var compiledFn = window["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
   if (compiledFn === undefined) {
-      throw ("Import not found: " + what)
+      throw new Error("Import not found: " + what)
   } else {
     return compiledFn()
   }
@@ -545,7 +545,7 @@ e_Env.prototype.emsg_getSlot_1 = function (noun) {
     return this.table[noun]
   } else {
     // XXX wording for updoc compatibility, probably not the best
-    throw ("undefined variable: " + noun)
+    throw new Error("undefined E variable: " + noun)
   }
 }
 e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
