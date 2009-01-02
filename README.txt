@@ -45,6 +45,8 @@ It is rather sketchy: various parts are specific to the test cases I've been wor
      
    </body></html>
 
+If you also load Cajita, load cajita.js before e.js.
+
 4. Compile your program.
 
 (XXX This ought to have a nice command, but doesn't.)

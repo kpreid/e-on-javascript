@@ -7,8 +7,10 @@ function e_js_writebreak() {
   document.getElementById("output").appendChild(document.createElement('br'))
 }
 
+var e_cajitaMode = !!window.cajita
+
 // Stub for Cajita facilities if Cajita isn't loaded
-var e_cajita = window["cajita"] ? cajita : {
+var e_cajita = e_cajitaMode ? cajita : {
   "snapshot": function (obj) {
     if (obj instanceof Array) {
       // without Cajita we consider all Arrays frozen
@@ -38,7 +40,7 @@ function e_NoJsMethod(r, verb, args) {
     // If r has an emsg method, 
     return r.emsg(verb, e_cajita.freeze(args))
   } else {
-    if (window["cajita"] === undefined) {
+    if (!e_cajitaMode) {
       return e_noSuchMethod(r, verb, args)
     } else if (verb === "get" && args.length === 1) { // Cajita
       var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
@@ -192,7 +194,7 @@ var e_ConstList_guard = {
   emsg_coerce_2: function (specimen, ejector) {
     specimen = e_array_guard.emsg_coerce_2(specimen, ejector)
     // XXX kludge -- a later Cajita will have cajita.isFrozen; then we can just write that instead of mentioning ___
-    if (!(window["cajita"]) || ___.isFrozen(specimen)) {
+    if (!e_cajitaMode || ___.isFrozen(specimen)) {
       return specimen
     } else {
       throw new Error("list is not const: " + specimen)
@@ -218,7 +220,7 @@ function e_sugarCall(fqn, self, verb, args) {
 // --- library --- 
 
 function e_wrapJsFunction(jsFunction) {
-  if (window["cajita"] === undefined) {
+  if (!e_cajitaMode) {
     return {
       emsg: function (verb, args) {
         if (verb === "run") {
@@ -396,7 +398,7 @@ Array.prototype.emsg___printOn_1 = function (out) {
   //  e_call(out, "write", ["["])
   //}
   //e_call(out, "write", ["]"])
-  if (!window["cajita"] || ___.isFrozen(this)) {
+  if (!e_cajitaMode || ___.isFrozen(this)) {
     e_call(this, "printOn", ["[", ", ", "]", out])
   } else {
     e_call(out, "write", ["<JS array>"])
@@ -631,7 +633,8 @@ function e_FlexList(array, guard) {
 }
 e_FlexList.prototype.emsg_size_0 = function () { return this.array.length }
 e_FlexList.prototype.emsg_get_1 = function (i) { return this.array.emsg_get_1(i) }
-e_FlexList.prototype.emsg_snapshot_0 = function () { return this.array.slice() }
+e_FlexList.prototype.emsg_snapshot_0 = function () {
+  return e_cajita.freeze(this.array.slice()) }
 e_FlexList.prototype.emsg_push_1 = function (v) { 
   this.array.push(e_call(this.guard, "coerce", [v, e_throw]))
 }
