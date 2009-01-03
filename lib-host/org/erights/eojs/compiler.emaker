@@ -400,13 +400,13 @@ def compile(expr, out, &senv) {
       return targetKit.scope(compile(body, out, &senv2))
     }
     to visitIfExpr(_, cond, then, els) {
-      # XXX coerce to boolean
       def [ctemp, cout] := targetKit.temp()
       var senv_then := senv
       var senv_els := senv
+      # XXX wrong scope for else block
       return targetKit.seq([
         compile(cond, cout, &senv_then),
-        targetKit."if"(ctemp,
+        targetKit."if"(targetKit.callf(targetKit.nativeVar("e_kernel_coerceBoolean"), [ctemp]),
           compile(then, out, &senv_then),
           compile(els, out, &senv_els)),
       ])

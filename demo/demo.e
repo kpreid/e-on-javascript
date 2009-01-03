@@ -21,8 +21,3 @@ def domitaEHandler {
     #alert("scheduled")
   }
 }
-
-# silly test of some infrastructure -- throw this out once we can run updoc etc.
-stdout.print("3 is a ")
-stdout.print(if (Ref.isResolved(3)) { "resolved" } else { "unresolved" })
-stdout.print(" ref.")

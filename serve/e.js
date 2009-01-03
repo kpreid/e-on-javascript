@@ -177,6 +177,11 @@ var e_boolean_guard = new e_NativeGuard("boolean")
 var e_number_guard  = new e_NativeGuard("number")
 var e_string_guard  = new e_NativeGuard("string")
 
+// used by compiler
+function e_kernel_coerceBoolean(specimen) {
+  return e_boolean_guard.emsg_coerce_2(specimen, e_throw)
+}
+
 var e_int_guard = e_number_guard // XXX constrain to integers or make Integer wrapper
 
 function e_getObjectGuard(constr) {
@@ -386,8 +391,8 @@ e_makeMap = {
         keys.push(key)
         values.push(value)
       }}])
-      return new e_ConstMap(keys, values)
-      
+      // .slice() to diverge from what can be altered by the iterate callback
+      return new e_ConstMap(keys.slice(), values.slice())
     },
     toString: function () { return "<E makeMap>" },
 }
@@ -396,12 +401,6 @@ Array.prototype.emsg = function (verb, args) {
   return e_sugarCall("org.erights.e.elib.tables.listSugar", this, verb, args)
 }
 Array.prototype.emsg___printOn_1 = function (out) {
-  //e_call(out, "write", ["["])
-  //for (var i = 0; i < pairs.length; i++) {
-  //  if (i > 0) e_call(out, "write", [", "])
-  //  e_call(out, "write", ["["])
-  //}
-  //e_call(out, "write", ["]"])
   if (!e_cajitaMode || ___.isFrozen(this)) {
     e_call(this, "printOn", ["[", ", ", "]", out])
   } else {
@@ -425,15 +424,8 @@ Array.prototype.emsg_get_1 = function (index) {
 Array.prototype.emsg_snapshot_0 = function () {
   return e_cajita.snapshot(this)
 }
-Array.prototype.emsg_diverge_0 = function () {
-  return e_call(e_import("org.erights.e.elib.tables.makeFlexList"), "diverge", [this, e_any_guard])
-}
-Array.prototype.emsg_iterate_1 = function (assocFunc) {
-  var l = this.length
-  //alert("got to iterate" + l + " for " + this)
-  for (var i = 0; i < l; i++) {
-    e_call(assocFunc, "run", e_cajita.freeze([i, this[i]]))
-  }
+Array.prototype.emsg_diverge_1 = function (guard) {
+  return e_call(e_import("org.erights.e.elib.tables.makeFlexList"), "diverge", [this, guard])
 }
 
 Number.prototype.emsg___printOn_1 = e_toStringPrint
@@ -515,7 +507,6 @@ var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
 e_safeEnvNames.push("__makeMap")
 var e_slot___loop = e_makeFinalSlot({
   emsg_run_1: function (body) {
-    // XXX should coerce to boolean
     while (e_boolean_guard.emsg_coerce_2(e_call(body, "run", []), e_throw));
   },
 })
@@ -588,6 +579,7 @@ e_addImportToSafe("rx__quasiParser", "org.erights.e.elang.interp.makePerlMatchMa
 e_addImportToSafe("Set", "org.erights.e.elib.tables.Set")
 e_addImportToSafe("simple__quasiParser", "org.quasiliteral.text.simple__quasiParser")
 e_addImportToSafe("Tuple", "org.erights.e.elib.slot.Tuple")
+e_addImportToSafe("void", "org.erights.e.elib.slot.void")
 e_addImportToSafe("vow", "org.erights.e.elang.interp.vow") // XXX inappropriate fqn?
 e_addImportToSafe("__bind"         , "org.erights.e.elang.expand.__bind")
 e_addImportToSafe("__booleanFlow"  , "org.erights.e.elang.expand.booleanFlow")
@@ -636,6 +628,13 @@ e_slot___equalizer = e_magicLazySlot(function () {
 })
 e_safeEnvNames.push("__equalizer")
 
+function e_auditedBy(auditor, specimen) {
+  return false // XXX stub
+}
+e_slot___auditedBy = e_makeFinalSlot({
+  emsg_run_2: e_auditedBy,
+})
+e_safeEnvNames.push("__auditedBy")
 
 // XXX doesn't support bindings for GBA
 function e_Env(table) {
@@ -692,7 +691,8 @@ var e_makeFlexList = {
         array.push(e_call(valueGuard, "coerce", [v, e_throw]))
       },
     }])
-    return new e_FlexList(array, valueGuard)
+    // .slice() to diverge from what can be altered by the iterate callback
+    return new e_FlexList(array.slice(), valueGuard)
   },
   toString: function () { return "e_makeFlexList" },
 }
@@ -703,33 +703,9 @@ var e_makeSameGuard = {
 }
 var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard }
 
-// --- privileged scope library -- XXX shouldn't be named by the global name convention
+// --- privileged scope library -- XXX shouldn't be named by the global name convention?
 
 var e_slot_alert = e_makeFinalSlot({emsg_run_1: function(v) {alert(v)}})
-var e_slot_document = e_makeFinalSlot({emsg_write_1: function(v) {document.write(v)}})
-
-e_document_writer = {
-    emsg_print_1: function (object) {
-        e_js_write(object.toString())
-    },
-    emsg_println_1: function (object) {
-        e_js_write(object.toString())
-        e_js_writebreak()
-    },
-    emsg_println_0: function () {
-        e_js_writebreak()
-    },
-    emsg: function(verb,args) {
-      if (verb === "print") {
-        var i
-        for (i = 0; i < args.length; i++) e_document_writer.emsg_print_1(args[i]);
-      } else {
-        e_noSuchMethod(this, verb, args)
-      }
-    },
-    toString: function () { return "<stdout>" },
-}
-var e_slot_stdout = e_makeFinalSlot(e_document_writer)
 
 var e_slot_timer = e_makeFinalSlot({
   emsg_now_0: function () { return new Date().getTime() },
