@@ -1,0 +1,53 @@
+# Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+# This is a default list of emakers to compile or load.
+
+# NOTE: This file's existence is a kludge. We *should* have some way of auto-generating and customizing the emaker list.
+
+[
+  "org.cubik.cle.sugarRoot",
+  "org.erights.e.elang.coord.makeOrderedSpace",
+  "org.erights.e.elang.expand.booleanFlow",
+  "org.erights.e.elang.expand.comparer",
+  "org.erights.e.elang.expand.makeViaExtractor",
+  "org.erights.e.elang.expand.makeViaQuasi",
+  "org.erights.e.elang.expand.makeViaSame",
+  "org.erights.e.elang.expand.slotToBinding",
+  "org.erights.e.elang.expand.suchThat",
+  "org.erights.e.elang.expand.viaEmptyMap",
+  "org.erights.e.elang.expand.__bind",
+  "org.erights.e.elang.expand.__makeVerbFacet",
+  "org.erights.e.elang.expand.__splitList",
+  "org.erights.e.elang.expand.__switchFailed",
+  "org.erights.e.elang.interp.help",
+  "org.erights.e.elang.interp.makePerlMatchMaker",
+  "org.erights.e.elang.interp.notNull",
+  "org.erights.e.elang.interp.promiseAllFulfilled",
+  "org.erights.e.elang.interp.rcvr",
+  "org.erights.e.elang.interp.require",
+  "org.erights.e.elang.interp.vow",
+  "org.erights.e.elang.syntax.epatt__quasiParser",
+  "org.erights.e.elang.syntax.e__quasiParser",
+  "org.erights.e.elib.eio.EIO",
+  "org.erights.e.elib.oldeio.makeTextWriter",
+  "org.erights.e.elib.ref.RefAuthor",
+  "org.erights.e.elib.serial.Data",
+  "org.erights.e.elib.serial.DeepFrozen",
+  "org.erights.e.elib.serial.opaque__uriGetter",
+  "org.erights.e.elib.serial.PassByCopy",
+  "org.erights.e.elib.slot.Guard",
+  "org.erights.e.elib.slot.makeIntersectionGuard",
+  "org.erights.e.elib.slot.makeNegatedGuard",
+  "org.erights.e.elib.slot.Map",
+  "org.erights.e.elib.slot.near",
+  "org.erights.e.elib.slot.nullOk",
+  "org.erights.e.elib.slot.Same",
+  "org.erights.e.elib.slot.Tuple",
+  "org.erights.e.elib.tables.constMapSugar",
+  "org.erights.e.elib.tables.listSugar",
+  "org.erights.e.elib.tables.makeEqualizer",
+  "org.erights.e.elib.tables.mapSugar",
+  "org.erights.e.elib.tables.Set",
+  "org.quasiliteral.text.simple__quasiParser",
+]
