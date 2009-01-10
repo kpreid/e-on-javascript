@@ -345,13 +345,21 @@ def compile(expr, out, &senv) {
       )
       #return genCall(compile(rec, out), verb, map.kv(fn _,v { compile(v, out)}, args))
     }
-    to visitDefineExpr(_, pat, ej, expr) {
-      # XXX compile ej
+    to visitDefineExpr(_, pat, ej, rexpr) {
+      # XXX compile ej -- once ejectors are implemented on the pattern side
       # XXX this puts lhs in the scope of the rhs
-      def [temp, tout] := targetKit.temp()
-      return targetKit.seq([compile(expr, tout, &senv),
-                          compilePat(pat, temp, null, &senv),
-                          out(temp)])
+      def [rtemp, rout] := targetKit.temp()
+      #if (ej != null) {
+        return targetKit.seq([compile(rexpr, rout, &senv),
+                            compilePat(pat, rtemp, null, &senv),
+                            out(rtemp)])
+      #} else {
+      #  def [etemp, eout] := targetKit.temp()
+      #  return targetKit.seq([compile(ej, eout, &senv),
+      #                        compile(rexpr, rout, &senv),
+      #                      compilePat(pat, rtemp, null, &senv),
+      #                      out(rtemp)])
+      #}
     }
     to visitAssignExpr(_, lv, rv) {
       def [rtemp, rout] := targetKit.temp()

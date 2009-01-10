@@ -5,8 +5,7 @@
 
 pragma.syntax("0.9")
 
-def Same := <import:org.erights.e.elib.slot.Same>
-def sugarRoot := <import:org.cubik.cle.sugarRoot>
+#def sugarRoot := <import:org.cubik.cle.sugarRoot>
 
 def listSugar
 
@@ -31,7 +30,7 @@ def childResponsibility(self, mverb) {
   throw(E.toQuote(self) + " failed to implement " + mverb)
 }
 
-bind listSugar extends sugarRoot implements EventuallyDeepFrozen, ExitViaHere {
+bind listSugar implements EventuallyDeepFrozen, ExitViaHere { # extends sugarRoot
   to instance_get(self, i) { childResponsibility(self, "get/1") }
   to instance_size(self) { childResponsibility(self, "size/0") }
   to instance_valueType(self) { childResponsibility(self, "valueType/0") }

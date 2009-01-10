@@ -12,15 +12,34 @@
 
   <script src="../serve/import/org/erights/e/elang/expand/__bind.js"></script>
   <script src="../serve/import/org/erights/e/elang/expand/comparer.js"></script>
+  <script src="../serve/import/org/erights/e/elang/expand/__Test.js"></script>
   <script src="../serve/import/org/erights/e/elang/interp/require.js"></script>
   <script src="../serve/import/org/erights/e/elib/oldeio/makeTextWriter.js"></script>
   <script src="../serve/import/org/erights/e/elib/ref/RefAuthor.js"></script>
   <script src="../serve/import/org/erights/e/elib/tables/constMapSugar.js"></script>
+  <script src="../serve/import/org/erights/e/elib/tables/makeEqualizer.js"></script>
   <script src="../serve/import/org/erights/e/elib/tables/mapSugar.js"></script>
-
+  <script src="../serve/import/org/erights/e/elib/tables/listSugar.js"></script>
+  <style type="text/css">
+    .drop-target {
+      display: inline-block;
+      width: 10em;
+      height: 1em;
+      background-color: #eee;
+      border: 2px inset #eee;
+    }
+    .draggable {
+      display: block;
+      width: 10em;
+      height: 1em;
+      border: 2px outset gray;
+      background: gray;
+      position: relative;
+      top: 0;
+      left: 0;
+    }
+  </style>
 </head><body>
-  <div id="output"></div>
-  
   <form><fieldset><legend>Simple</legend>
     <input type="text" id="counter" value=1>
     <input type="button" value="Increment" onclick="var e = document.getElementById('counter');e.value = e_call(e_call(e_slot_simpleEHandler, 'get', []), 'increment', [e.value])">
@@ -32,6 +51,24 @@
     <input type="button" value="Start Timer" onclick="e_call(e_call(e_slot_domitaEHandler, 'get', []), 'schedule', [new Date().getTime()])">
   </fieldset></form>
   
+  <div style="border: 1px dotted black; overflow: hidden; width: auto; height: 100%;" id="dragfield-demodoc">
+  
+    <div class="draggable" style="left: 0; top: 0;" id="drag1-demodoc">Drag me</div>
+    <div class="draggable" style="left: 0; top: 0;" id="drag2-demodoc">Drag me</div>
+  
+    <form id=callform><fieldset><legend>Call</legend>
+      <span class=drop-target id="rec-demodoc"></span>
+      .
+      <input type="text" name="verb" id="verb-demodoc">
+      (<span id="args-demodoc">
+        <span class=drop-target id="arg0-demodoc"></span>
+      </span>)
+
+    </fieldset></form>
+
+  </div>
+  
+  <div id="debug-demodoc"></div>
   <script>
   testImports = {}
   attachDocumentStub(

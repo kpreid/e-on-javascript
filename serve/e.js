@@ -210,7 +210,7 @@ var e_ConstList_guard = {
 var e_fqnTable = {} // XXX this doesn't actually do the right thing since tables are not keyed by objects in JS
 var e_sugarCache = {}
 function e_sugarHandler(verb, args) {
-  return e_sugarCall(e_fqnTable[this.constructor] + "Sugar")
+  return e_sugarCall(e_fqnTable[this.constructor] + "Sugar", this, verb, args)
 }
 function e_sugarCall(fqn, self, verb, args) {
   // XXX when import caching works, drop this
@@ -303,6 +303,15 @@ function e_makePromise() {
 }
 
 var e_throw = {
+  emsg_run_1: function (problem) {
+    // XXX should coerce problem
+    throw problem
+  },
+  emsg_eject_2: function (ejector, problem) {
+    // XXX should coerce problem?
+    e_call(ejector, "run", [problem])
+    throw new Error("ejector returned") // XXX more specific error
+  },
   toString: function () { return "<E throw>" },
 }
 
@@ -449,6 +458,7 @@ Number.prototype.emsg_atMostZero_0  = function () { return this <=  0 }
 Number.prototype.emsg_isZero_0      = function () { return this === 0 }
 Number.prototype.emsg_atLeastZero_0 = function () { return this >=  0 }
 Number.prototype.emsg_aboveZero_0   = function () { return this >   0 }
+Number.prototype.emsg_abs_0 = function () { return Math.abs(this) }
 Number.prototype.emsg_add_1 = function (other) {
   return this + e_number_guard.emsg_coerce_2(other, e_throw)
 }
@@ -467,6 +477,12 @@ Number.prototype.emsg_floorDivide_1 = function (other) {
 
 Boolean.prototype.emsg___printOn_1 = e_toStringPrint
 Boolean.prototype.emsg_not_0 = function () { return !this }
+Boolean.prototype.emsg_and_1 = function (other) { 
+  return this.valueOf() && e_boolean_guard.emsg_coerce_2(other, e_throw)
+}
+Boolean.prototype.emsg_or_1 = function (other) { 
+  return this.valueOf() || e_boolean_guard.emsg_coerce_2(other, e_throw)
+}
 
 String.prototype.emsg___printOn_1 = function (out) {
   e_call(out, "write", ['"'])
@@ -486,12 +502,16 @@ var e_slot_E = e_makeFinalSlot(e_e)
 var e_slot_true = e_makeFinalSlot(true)
 var e_slot_false = e_makeFinalSlot(false)
 var e_slot_null = e_makeFinalSlot(e_null)
+var e_slot_NaN = e_makeFinalSlot(NaN)
+var e_slot_Infinity = e_makeFinalSlot(Infinity)
 var e_slot_any = e_makeFinalSlot(e_any_guard)
 e_safeEnvNames.push("throw")
 e_safeEnvNames.push("E")
 e_safeEnvNames.push("true")
 e_safeEnvNames.push("false")
 e_safeEnvNames.push("null")
+e_safeEnvNames.push("NaN")
+e_safeEnvNames.push("Infinity")
 e_safeEnvNames.push("any")
 var e_slot___makeList = e_makeFinalSlot({
   emsg: function (verb, args) { 
@@ -513,6 +533,7 @@ var e_slot___loop = e_makeFinalSlot({
 e_safeEnvNames.push("__loop")
 var e_slot___makeInt = e_makeFinalSlot({
     emsg_run_1: function (str) {
+        // XXX handle errors correctly
         return parseInt(e_string_guard.emsg_coerce_2(str, e_throw)); }})
 e_safeEnvNames.push("__makeInt")
 
@@ -582,7 +603,7 @@ e_addImportToSafe("Tuple", "org.erights.e.elib.slot.Tuple")
 e_addImportToSafe("void", "org.erights.e.elib.slot.void")
 e_addImportToSafe("vow", "org.erights.e.elang.interp.vow") // XXX inappropriate fqn?
 e_addImportToSafe("__bind"         , "org.erights.e.elang.expand.__bind")
-e_addImportToSafe("__booleanFlow"  , "org.erights.e.elang.expand.booleanFlow")
+e_addImportToSafe("__booleanFlow"  , "org.erights.e.elang.expand.booleanFlow") // XXX EoCL's expander only
 e_addImportToSafe("__comparer"     , "org.erights.e.elang.expand.comparer")
 e_addImportToSafe("__makeOrderedSpace", "org.erights.e.elang.coord.makeOrderedSpace")
 e_addImportToSafe("__makeVerbFacet", "org.erights.e.elang.expand.__makeVerbFacet")
@@ -594,6 +615,7 @@ e_addImportToSafe("__slotToBinding", "org.erights.e.elang.expand.slotToBinding")
 e_addImportToSafe("__splitList"    , "org.erights.e.elang.expand.__splitList")
 e_addImportToSafe("__suchThat"     , "org.erights.e.elang.expand.suchThat")
 e_addImportToSafe("__switchFailed" , "org.erights.e.elang.expand.__switchFailed")
+e_addImportToSafe("__Test"         , "org.erights.e.elang.expand.__Test") // XXX EoJ's expander only
 
 
 e_slot_List       = e_makeFinalSlot(e_ConstList_guard)
@@ -675,6 +697,10 @@ function e_FlexList(array, guard) {
   this.array = array
   this.guard = guard
 }
+e_fqnTable[e_FlexList] = "org.erights.e.elib.tables.flexList"
+e_FlexList.prototype.emsg___printOn_1 = function (out) {
+  e_call(this, "printOn", ["[", ", ", "].diverge()", out])
+}
 e_FlexList.prototype.emsg_size_0 = function () { return this.array.length }
 e_FlexList.prototype.emsg_get_1 = function (i) { return this.array.emsg_get_1(i) }
 e_FlexList.prototype.emsg_snapshot_0 = function () {
@@ -682,6 +708,7 @@ e_FlexList.prototype.emsg_snapshot_0 = function () {
 e_FlexList.prototype.emsg_push_1 = function (v) { 
   this.array.push(e_call(this.guard, "coerce", [v, e_throw]))
 }
+e_FlexList.prototype.emsg = e_sugarHandler
 
 var e_makeFlexList = {
   emsg_diverge_2: function (source, valueGuard) {
@@ -701,7 +728,18 @@ var e_maker_org_$erights_$e_$elib_$tables_$makeFlexList = function () { return e
 var e_makeSameGuard = {
   toString: function () { return "Same" },
 }
-var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard }
+var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard } // XXX inappropriate fqn
+
+var e_jsTools = {
+  // convert an E function object into a JavaScript function
+  emsg_asFunction_1: function (eFunc) {
+    var f = function () {
+      return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0))
+    }
+    return cajita ? ___.func(f) : f;
+  }
+}
+var e_maker_org_$erights_$eojs_$jsTools = function () { return e_jsTools }
 
 // --- privileged scope library -- XXX shouldn't be named by the global name convention?
 
