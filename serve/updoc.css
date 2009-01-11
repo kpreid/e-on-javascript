@@ -40,3 +40,13 @@
 .updoc-step.updoc-mismatch .updoc-output-got { color: red; }
 .updoc-step.updoc-mismatch .updoc-output-exp { color: green; }
 
+/* --- multi-test driver page styles --- */
+
+.updoc-pane-group {
+  white-space: nowrap;
+}
+
+.updoc-pane {
+  width: 90%;
+  height: 90%;
+}

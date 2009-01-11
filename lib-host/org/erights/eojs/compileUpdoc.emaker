@@ -8,7 +8,13 @@ def compiler := <import:org.erights.eojs.compiler>
 def commonEmakerList := <import:org.erights.eojs.commonEmakerList>
 def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
-def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
+def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null) # XXX support the user supplying a hash-cache for the animation case
+
+def Writer := any
+def Term := <import:org.quasiliteral.term.makeTerm>.asType()
+
+def nullWriter {match _ {}}
+def nullResolver {match _ {}}
 
 def htmlesc(t :String) {
   return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
@@ -19,16 +25,40 @@ def jsQuote(t :String) {
 }
 
 def compileUpdoc {
-  /** The prefix is used for element IDs and JS identifiers. */
-  to toHTMLFragment(progress, prefix, updocSource) {
-    def updoc := makeUpdocParser.parsePlain(updocSource)
-
-    def term`script(inVats(@_*),
-                    [inVat("home",
-                           [@steps*])])` := updoc
-
+  /** The prefix is used for element IDs and JS identifiers.
+    * whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. */
+  to toHTMLFragment(
+    prefix :String,
+    [=> progress :Writer := nullWriter,
+     => whetherFoundResolver := nullResolver],
+    updoc :Term
+  ) {
+    
+    def term`script(inVats(@vatNames*),
+                    [@sequences*])` := updoc
+    
+    def steps := switch (sequences) {
+      # one vat
+      match [term`inVat(@vatName, [@steps*])`] {
+        steps
+      }
+      
+      # no vats (empty updoc)
+      match [] {
+        []
+      }
+      
+      # multiple vats
+      match [_, _] + _ {
+        # XXX ejector
+        throw("Cannot convert multiple-vat Updoc.")
+      }
+    }
+    
     def envVar := `${prefix}_eenv`
-
+    
+    whetherFoundResolver.resolve(steps.size().aboveZero())
+    
     return `$\
       <script>
         var $envVar = e_makeSafeEnv()
@@ -101,16 +131,29 @@ def compileUpdoc {
       </script>
     `
   }
-  to toHTMLDocument(progress, dir, updocSource) {
+  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. */
+  to toHTMLDocument(
+    dir :String,
+    [=> title :String := "E-on-JavaScript converted Updoc"] | options,
+    updoc :Term
+  ) {
     return `
       <html><head>
-        <title>EoJS Converted Updoc</title>
+        <title>${htmlesc(title)}</title>
         ${compileUpdoc.getHTMLHeadInclusion(dir)}
       </head><body>
         <div id="output"></div>
-        ${compileUpdoc.toHTMLFragment(progress, "upd1", updocSource)}
+        ${compileUpdoc.toHTMLFragment("upd1", options, updoc)}
       </body></html>
     `
+  }
+  /** As toHTMLDocument/3, but takes HTML source and produces a HTML document including all the markup of the original, with added Updoc support. (XXX but it doesn't actually do that yet.) */
+  to animateHTMLDocument(
+    dir :String,
+    options :Map,
+    htmlSource :Twine
+  ) {
+    return compileUpdoc.toHTMLDocument(dir, options, makeUpdocParser.parseHtml(htmlSource))
   }
   # XXX the following list of emakers is static, not configurable or computed
   to getHTMLHeadInclusion(dir) { return `$\
@@ -126,4 +169,23 @@ def compileUpdoc {
       _.with(`<script src="$dir/import/${emaker.replaceAll(".", "/")}.js"></script>`)
     })}
   `}
+  
+  /** Create a HTML document which will embed and execute every listed converted-updoc file. */
+  to makeUpdocIndexDocument(dir :String, files :List[Tuple[String, any]]) {
+    # XXX this page should embed every test file in an iframe and monitor them for success.
+    return `$\
+ <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head>
+  <title>E Specification Tests</title>
+  <link rel="stylesheet" href="../serve/updoc.css">
+</head><body>
+
+<div class="updoc-pane-group" ${accum "" for [name, file] in files {
+  # XXX URI-encoding
+  _ + `<iframe class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe>`
+}}</div>
+
+</body>`
+    
+  }
 }
