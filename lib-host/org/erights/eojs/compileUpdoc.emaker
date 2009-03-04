@@ -143,6 +143,7 @@ def compileUpdoc {
         ${compileUpdoc.getHTMLHeadInclusion(dir)}
       </head><body>
         <div id="output"></div>
+        <h1>${htmlesc(title)}</h1>
         ${compileUpdoc.toHTMLFragment("upd1", options, updoc)}
       </body></html>
     `
@@ -172,7 +173,7 @@ def compileUpdoc {
   
   /** Create a HTML document which will embed and execute every listed converted-updoc file. */
   to makeUpdocIndexDocument(dir :String, files :List[Tuple[String, any]]) {
-    # XXX this page should embed every test file in an iframe and monitor them for success.
+    # XXX this page should run each iframe serially or limited parallel, and monitor them for success/failure and summarize the results.
     return `$\
  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html><head>
