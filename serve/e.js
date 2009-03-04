@@ -1,5 +1,7 @@
 // Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
 // found at http://www.opensource.org/licenses/mit-license.html ...............
+
+// No longer used, but kept around for occasional debugging use
 function e_js_write(text) {
   document.getElementById("output").appendChild(document.createTextNode(text))
 }
@@ -7,6 +9,7 @@ function e_js_writebreak() {
   document.getElementById("output").appendChild(document.createElement('br'))
 }
 
+// To avoid incoherent behavior, we decide on whether we run in Cajita-interop style only once.
 var e_cajitaMode = !!window.cajita
 
 // Stub for Cajita facilities if Cajita isn't loaded
@@ -25,7 +28,8 @@ var e_cajita = e_cajitaMode ? cajita : {
 // This variable contains every noun which is globally defined in JS and should be made part of the safeEnv.
 var e_safeEnvNames = []
 
-// --- core ---
+// --- core - message dispatch facilities ---
+
 function e_noSuchMethod(r, v, a) {
   var ty = typeof(r)
   if (ty === "object") {
@@ -657,6 +661,18 @@ e_slot___auditedBy = e_makeFinalSlot({
   emsg_run_2: e_auditedBy,
 })
 e_safeEnvNames.push("__auditedBy")
+
+// traceln is a stub ...
+e_slot_traceln = e_makeFinalSlot({
+  emsg_run_1: function () {},
+})
+// ...unless we can hook it up to something.
+if (window["console"]) { // supplied by at least Firefox+Firebug and Safari, according to my research
+  e_call(e_slot_traceln, "get", []).emsg_run_1 = function (s) {
+    console.log(e_call(e_string_guard, "coerce", [s, e_throw]))
+  },
+}
+e_safeEnvNames.push("traceln")
 
 // XXX doesn't support bindings for GBA
 function e_Env(table) {

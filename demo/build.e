@@ -14,9 +14,11 @@ def libs := [
   "org.erights.e.elang.expand.__bind",
   "org.erights.e.elang.expand.__Test",
   "org.erights.e.elang.interp.require",
+  "org.erights.e.elib.oldeio.makeTextWriter",
   "org.erights.e.elib.ref.RefAuthor",
   "org.erights.e.elib.tables.constMapSugar",
   "org.erights.e.elib.tables.listSugar",
+  "org.erights.e.elib.tables.makeEqualizer",
   "org.erights.e.elib.tables.mapSugar",
   #"org.quasiliteral.text.simple__quasiParser",
 ]
