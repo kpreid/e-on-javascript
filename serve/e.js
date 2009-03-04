@@ -146,8 +146,12 @@ function e_toStringPrint(out) {
   e_call(out, "write", [this.toString()])
 }
 
-function e_NativeGuard(typeStr) {
+function e_NativeGuard(typeStr, eNameStr) {
   this.typeStr = typeStr
+  this.eNameStr = eNameStr
+}
+e_NativeGuard.prototype.emsg___printOn_1 = function (out) {
+  e_call(out, "write", [this.eNameStr])
 }
 e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (typeof(specimen) === "object") {
@@ -177,9 +181,9 @@ var e_any_guard = {
   emsg_coerce_2: function (specimen, ejector) { return specimen },
 }
 
-var e_boolean_guard = new e_NativeGuard("boolean")
-var e_number_guard  = new e_NativeGuard("number")
-var e_string_guard  = new e_NativeGuard("string")
+var e_boolean_guard = new e_NativeGuard("boolean", "Boolean")
+var e_number_guard  = new e_NativeGuard("number", "Float64")
+var e_string_guard  = new e_NativeGuard("string", "String")
 
 // used by compiler
 function e_kernel_coerceBoolean(specimen) {
@@ -480,12 +484,18 @@ Number.prototype.emsg_floorDivide_1 = function (other) {
 }
 
 Boolean.prototype.emsg___printOn_1 = e_toStringPrint
-Boolean.prototype.emsg_not_0 = function () { return !this }
+Boolean.prototype.emsg_not_0 = function () { return !(this.valueOf()) }
 Boolean.prototype.emsg_and_1 = function (other) { 
   return this.valueOf() && e_boolean_guard.emsg_coerce_2(other, e_throw)
 }
 Boolean.prototype.emsg_or_1 = function (other) { 
   return this.valueOf() || e_boolean_guard.emsg_coerce_2(other, e_throw)
+}
+Boolean.prototype.emsg_xor_1 = function (other) { 
+  return this.valueOf() != e_boolean_guard.emsg_coerce_2(other, e_throw)
+}
+Boolean.prototype.emsg_pick_2 = function (ifTrue, ifFalse) { 
+  return this.valueOf() ? ifTrue : ifFalse
 }
 
 String.prototype.emsg___printOn_1 = function (out) {
@@ -626,10 +636,12 @@ e_slot_List       = e_makeFinalSlot(e_ConstList_guard)
 e_slot_int        = e_makeFinalSlot(e_int_guard)
 e_slot_float64    = e_makeFinalSlot(e_number_guard)
 e_slot_String     = e_makeFinalSlot(e_string_guard)
+e_slot_boolean     = e_makeFinalSlot(e_boolean_guard)
 e_safeEnvNames.push("List")
 e_safeEnvNames.push("int")
 e_safeEnvNames.push("float64")
 e_safeEnvNames.push("String")
+e_safeEnvNames.push("boolean")
 e_maker_org_$cubik_$cle_$prim_$float64 = function () { return e_number_guard } // XXX wrong fqn
 e_maker_org_$cubik_$cle_$prim_$int = function () { return e_int_guard } // XXX wrong fqn
 
