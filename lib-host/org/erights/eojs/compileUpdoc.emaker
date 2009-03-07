@@ -181,9 +181,9 @@ def compileUpdoc {
   <link rel="stylesheet" href="../serve/updoc.css">
 </head><body>
 
-<div class="updoc-pane-group" ${accum "" for [name, file] in files {
+<div class="updoc-pane-group">${accum "" for i => [name, file] in files {
   # XXX URI-encoding
-  _ + `<iframe class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe>`
+  _ + `<iframe id="updoc-frame-$i" class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe>`
 }}</div>
 
 </body>`
