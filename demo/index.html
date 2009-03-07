@@ -38,6 +38,22 @@
       top: 0;
       left: 0;
     }
+    #ball-demodoc {
+      position: relative;
+      top: 0;
+      left: 0;
+      width: 2em;
+      height: 2em;
+      text-align: center;
+      color: white;
+      background: #7D89E3;
+    }
+    #room-demodoc {
+      width: 100px;
+      height: 100px;
+      border: 2px outset #ccc;
+      float: right;
+    }
   </style>
 </head><body>
   <form><fieldset><legend>Simple</legend>
@@ -50,6 +66,10 @@
     <input type="button" value="Increment" onclick="e_call(e_call(e_slot_domitaEHandler, 'get', []), 'increment', [])">
     <input type="button" value="Start Timer" onclick="e_call(e_call(e_slot_domitaEHandler, 'get', []), 'schedule', [new Date().getTime()])">
   </fieldset></form>
+  
+  <div id="room-demodoc">
+    <div id="ball-demodoc">E</div>
+  </div>
   
   <div style="border: 1px dotted black; overflow: hidden; width: auto; height: 100%;" id="dragfield-demodoc">
   
@@ -84,4 +104,7 @@
   </script>
 
   <script src="demo.js"></script>
+  <script>
+    e_call(e_call(e_slot_startAnimation, "get", []), "run", [])
+  </script>
 </body></html>

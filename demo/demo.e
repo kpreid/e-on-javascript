@@ -89,3 +89,15 @@ def setDraggable(element) {
 
 setDraggable(docita.getElementById("drag1"))
 setDraggable(docita.getElementById("drag2"))
+
+# --- Animation ---
+
+def animElementStyle := docita.getElementById("ball")["style"]
+def startAnimation() {
+    def t := timer.now() + 50
+    timer.whenPast(t, fn {
+      animElementStyle["left"] := E.toString(30 * (t / 1000).sin() + 30) + "px"
+      animElementStyle["top"] := E.toString(30 * (t / 1432).sin() + 30) + "px"
+      startAnimation()
+    })
+}
