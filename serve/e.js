@@ -466,7 +466,7 @@ Number.prototype.emsg_atMostZero_0  = function () { return this <=  0 }
 Number.prototype.emsg_isZero_0      = function () { return this === 0 }
 Number.prototype.emsg_atLeastZero_0 = function () { return this >=  0 }
 Number.prototype.emsg_aboveZero_0   = function () { return this >   0 }
-Number.prototype.emsg_abs_0 = function () { return Math.abs(this) }
+Number.prototype.emsg_negate_0      = function () { return -this }
 Number.prototype.emsg_add_1 = function (other) {
   return this + e_number_guard.emsg_coerce_2(other, e_throw)
 }
@@ -481,7 +481,18 @@ Number.prototype.emsg_approxDivide_1 = function (other) {
 }
 Number.prototype.emsg_floorDivide_1 = function (other) {
   return Math.floor(this / e_number_guard.emsg_coerce_2(other, e_throw))
-}
+};
+
+(function () {
+  var mathCopy0 = ["abs", "sin", "cos", "tan", "floor", "ceil"] // XXX complete this list
+  for (var i = 0; i < mathCopy0.length; i++) {
+    (function (mathFn) {
+      Number.prototype["emsg_" + mathCopy0[i] + "_0"] = function () {
+        return mathFn.call(Math, this)
+      }
+    })(Math[mathCopy0[i]])
+  }
+})();
 
 Boolean.prototype.emsg___printOn_1 = e_toStringPrint
 Boolean.prototype.emsg_not_0 = function () { return !(this.valueOf()) }
