@@ -725,6 +725,9 @@ function e_makeSafeEnv() {
   return new e_Env(table)
 }
 
+e_slot___identityFunc = e_makeFinalSlot({emsg_run_1: function (x) { return x }})
+e_safeEnvNames.push("__identityFunc")
+
 // --- primitive imports --
 
 // XXX stub, and bad fqn
