@@ -693,7 +693,7 @@ e_slot_traceln = e_makeFinalSlot({
 if (window["console"]) { // supplied by at least Firefox+Firebug and Safari, according to my research
   e_call(e_slot_traceln, "get", []).emsg_run_1 = function (s) {
     console.log(e_call(e_string_guard, "coerce", [s, e_throw]))
-  },
+  }
 }
 e_safeEnvNames.push("traceln")
 
