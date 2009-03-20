@@ -101,6 +101,13 @@ bind listSugar implements EventuallyDeepFrozen, ExitViaHere { # extends sugarRoo
     }
     out.write(closeS)
   }
+  
+  to instance_with(self, value) {
+      return self + [value]
+  }
+  to instance_with(self, index, value) {
+      throw("XXX have a test for this")
+  }
 
   /** Not a sugar method; to be used by get/1 implementations for too-high indexes. */
   to listIndexError(self, index) {
