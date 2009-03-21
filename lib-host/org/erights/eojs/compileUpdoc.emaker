@@ -134,7 +134,9 @@ def compileUpdoc {
   /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. */
   to toHTMLDocument(
     dir :String,
-    [=> title :String := "E-on-JavaScript converted Updoc"] | options,
+    [=> title :String := "E-on-JavaScript converted Updoc",
+     => documentHeadingLevel :(1..6) := 1
+    ] | options,
     updoc :Term
   ) {
     return `
@@ -142,9 +144,11 @@ def compileUpdoc {
         <title>${htmlesc(title)}</title>
         ${compileUpdoc.getHTMLHeadInclusion(dir)}
       </head><body>
-        <div id="output"></div>
-        <h1>${htmlesc(title)}</h1>
-        ${compileUpdoc.toHTMLFragment("upd1", options, updoc)}
+        <div id="all-container-for-resize-kludge">
+          <div id="output"></div>
+          <h$documentHeadingLevel>${htmlesc(title)}</h$documentHeadingLevel>
+          ${compileUpdoc.toHTMLFragment("upd1", options, updoc)}
+        </div>
       </body></html>
     `
   }
@@ -179,13 +183,25 @@ def compileUpdoc {
 <html><head>
   <title>E Specification Tests</title>
   <link rel="stylesheet" href="../serve/updoc.css">
+  <script src="$dir/updoc-index.js"></script>
 </head><body>
 
-<div class="updoc-pane-group">${accum "" for i => [name, file] in files {
+<h2>Table of contents</h2>
+
+<ol>
+${accum "" for i => [name, _] in files {
   # XXX URI-encoding
-  _ + `<iframe id="updoc-frame-$i" class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe>`
+  _ + `  <li><a href="#updoc-frame-$i">${htmlesc(name)}</a></li>$\n`
+}}
+</ol>
+
+<div class="updoc-pane-group">
+${accum "" for i => [name, file] in files {
+  # XXX URI-encoding
+  _ + `  <p><iframe id="updoc-frame-$i" class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe></p>$\n`
 }}</div>
 
+<script>updoc_startAdjustingFrames()</script>
 </body>`
     
   }

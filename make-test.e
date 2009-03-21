@@ -60,6 +60,7 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
       "title" => name,
       "progress" => stderr,
       "whetherFoundResolver" => def found,
+      "documentHeadingLevel" => 2,
     ], htmlFile.getTwine()))
   
   if (!found) {

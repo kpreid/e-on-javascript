@@ -43,10 +43,12 @@
 /* --- multi-test driver page styles --- */
 
 .updoc-pane-group {
-  white-space: nowrap;
+  /* white-space: nowrap; */
 }
 
 .updoc-pane {
-  width: 90%;
+  border: none;
+  margin: 0 auto 0 auto;
+  width: 95%;
   height: 90%;
 }
