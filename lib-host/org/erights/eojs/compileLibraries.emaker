@@ -42,7 +42,7 @@ def compileLibraries(dotNames, sources, destination, report, overwrite) {
             };
         `)
       } catch p {
-        report.println(`Failed to compile: $p${p.eStack()}$\n---`)
+        report.println(`Failed to compile: $p${p.eStack()}$\n---$\n$\n$\n`)
       }
     }
   }
