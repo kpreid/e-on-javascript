@@ -317,6 +317,10 @@ var e_throw = {
   },
   emsg_eject_2: function (ejector, problem) {
     // XXX should coerce problem?
+    if (ejector === e_null) {
+      // XXX complain about deprecated 
+      e_throw.emsg_run_1(problem)
+    }
     e_call(ejector, "run", [problem])
     throw new Error("ejector returned") // XXX more specific error
   },
