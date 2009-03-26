@@ -440,7 +440,12 @@ Array.prototype.emsg_size_0 = function () {
   return this.length
 }
 Array.prototype.emsg_get_1 = function (index) {
-  return this[e_int_guard.emsg_coerce_2(index, e_throw)]
+  var x = this[e_int_guard.emsg_coerce_2(index, e_throw)]
+  if (x === undefined) {
+    throw "ConstList index out of bounds" // XXX proper type
+  } else {
+    return x
+  }
 }
 Array.prototype.emsg_snapshot_0 = function () {
   return e_cajita.snapshot(this)
