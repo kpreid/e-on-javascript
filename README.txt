@@ -17,7 +17,7 @@ It is rather sketchy: various parts are sufficient only to run the test cases I'
 
 --- Test suite
 
-Run make-test.e (which will download and compile the E specification test suite from wiki.erights.org), then open test-conv/index.html, which will will load a series of iframes with each test file. There ought to be a summary of which tests failed, and the tests ought to be shown within their original documentation, but those parts haven't been implemented yet.
+Run make-test.e (which will download and compile the E specification test suite from wiki.erights.org), then open test-conv/index.html, which will load a series of iframes with each test file. Note that the conversion does not perfectly preserve the original document content: in particular, non-updoc text inside <pre> is not preserved. Also, there is currently a lot of unstyled navigation-bar cruft.
 
 --- Writing an application
 
@@ -52,7 +52,7 @@ Interaction with the containing web page must be bootstrapped by JavaScript code
      
    </body></html>
 
-If you also load Cajita, load cajita.js before e.js.
+If you also load Cajita, you must load cajita.js before e.js for the bridge to operate.
 
 4. Compile your program.
 
@@ -85,7 +85,7 @@ An Updoc file can be converted into a HTML document which runs its code and disp
   >      stderr, "../serve",
   >      makeUpdocParser.parsePlain(<file:foo.updoc>.getTwine())))
   
-There is also a multi-file updoc runner facility, but it is as yet barely implemented; it is used in the standard test suite (make-test.e).
+There is also a multi-file updoc runner; it is used in the standard test suite (make-test.e).
 
 --- Implementation notes
 
@@ -104,6 +104,6 @@ All JS Arrays are considered ConstLists unless Cajita is loaded, in which case o
 - Get the compiler running under EoJS
     (Together these two would make it capable of providing a REPL without a web server supporting it.)
 - Better updoc-running facilities:
-  - Failure count/summary
-    - ...over multiple files
-  - When converting an Updoc-in-HTML file, preserve the original markup.
+  - Failure count/summary in individual files.
+  - More readable failure summary in index file.
+  - When converting an Updoc-in-HTML file, do a better job of the original markup.
