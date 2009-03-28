@@ -1,0 +1,15 @@
+# XXX made in a hurry, not truly reviewed for taming - kpreid 2009-03-27
+
+class(safe,
+      "javax.xml.transform.sax.SAXSource",
+      statics(method(suppress, "getFEATURE()"),
+              method(suppress, "run()"),
+              method("run(XMLReader, InputSource)"),
+              method(suppress, "run(InputSource)"),
+              method(suppress, "sourceToInputSource(Source)")),
+      methods(method(suppress, "setXMLReader(XMLReader)"),
+              method(suppress, "getXMLReader()"),
+              method(suppress, "setInputSource(InputSource)"),
+              method(suppress, "getInputSource()"),
+              method(suppress, "setSystemId(String)"),
+              method(suppress, "getSystemId()")))

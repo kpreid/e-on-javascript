@@ -56,7 +56,7 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
 
   stderr.print(`  $name`)
   convertedFile.setText(
-    compileUpdoc.animateHTMLDocument("../serve", [
+    compileUpdoc.animateHTMLDocument(true, "../serve", [
       "title" => name,
       "progress" => stderr,
       "whetherFoundResolver" => def found,

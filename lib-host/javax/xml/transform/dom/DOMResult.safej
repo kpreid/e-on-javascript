@@ -1,0 +1,16 @@
+# XXX made in a hurry, not truly reviewed for taming - kpreid 2009-03-27
+
+class(safe,
+      "javax.xml.transform.dom.DOMResult",
+      statics(method(suppress, "getFEATURE()"),
+              method("run()"),
+              method(suppress, "run(Node)"),
+              method(suppress, "run(Node, String)"),
+              method(suppress, "run(Node, Node)"),
+              method(suppress, "run(Node, Node, String)")),
+      methods(method(suppress, "setNode(Node)"),
+              method("getNode()"),
+              method(suppress, "setNextSibling(Node)"),
+              method(suppress, "getNextSibling()"),
+              method(suppress, "setSystemId(String)"),
+              method(suppress, "getSystemId()")))

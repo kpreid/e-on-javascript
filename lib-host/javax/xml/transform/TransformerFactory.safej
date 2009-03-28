@@ -1,0 +1,17 @@
+# XXX made in a hurry, not truly reviewed for taming - kpreid 2009-03-27
+
+class(safe,
+      "javax.xml.transform.TransformerFactory",
+      statics(method("newInstance()")), # XXX review for safety
+      methods(method(suppress, "newTransformer(Source)"),
+              method("newTransformer()"), # XXX review for safety
+              method(suppress, "newTemplates(Source)"),
+              method(suppress, "getAssociatedStylesheet(Source, String, String, String)"),
+              method(suppress, "setURIResolver(URIResolver)"),
+              method(suppress, "getURIResolver()"),
+              method(suppress, "setFeature(String, boolean)"),
+              method(suppress, "getFeature(String)"),
+              method(suppress, "setAttribute(String, Object)"),
+              method(suppress, "getAttribute(String)"),
+              method(suppress, "setErrorListener(ErrorListener)"),
+              method(suppress, "getErrorListener()")))

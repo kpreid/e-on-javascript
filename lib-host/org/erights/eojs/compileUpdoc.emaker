@@ -13,6 +13,10 @@ def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(
 def Writer := any
 def Term := <import:org.quasiliteral.term.makeTerm>.asType()
 
+def TEXT_NODE := <import:org.w3c.dom.makeNode>.getTEXT_NODE()
+def htmlns := "http://www.w3.org/1999/xhtml"
+def transformer := <import:javax.xml.transform.makeTransformerFactory>.newInstance().newTransformer() # used by htmlToDom
+  
 def nullWriter {match _ {}}
 def nullResolver {match _ {}}
 
@@ -24,174 +28,314 @@ def jsQuote(t :String) {
   return E.toQuote(t).replaceAll("\n", "\\n")
 }
 
-def compileUpdoc {
-  /** The prefix is used for element IDs and JS identifiers.
-    * whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. */
-  to toHTMLFragment(
-    prefix :String,
-    [=> progress :Writer := nullWriter,
-     => whetherFoundResolver := nullResolver],
-    updoc :Term
-  ) {
-    
-    def term`script(inVats(@vatNames*),
-                    [@sequences*])` := updoc
-    
-    def steps := switch (sequences) {
-      # one vat
-      match [term`inVat(@vatName, [@steps*])`] {
-        steps
-      }
-      
-      # no vats (empty updoc)
-      match [] {
-        []
-      }
-      
-      # multiple vats
-      match [_, _] + _ {
-        # XXX ejector
-        throw("Cannot convert multiple-vat Updoc.")
-      }
+def htmlToDom(html :String) {
+  # TagSoup/DOM glue from http://www.jezuk.co.uk/cgi-bin/view/jez?id=2643
+  def makeTagSoupParser := <import:org.ccil.cowan.tagsoup.makeParser>
+  def reader := makeTagSoupParser()
+  reader.setFeature(makeTagSoupParser.getNamespacesFeature(), true)
+  reader.setFeature(makeTagSoupParser.getNamespacePrefixesFeature(), false)
+
+  def result := <import:javax.xml.transform.dom.makeDOMResult>()
+
+  transformer.transform(<import:javax.xml.transform.sax.makeSAXSource>(reader, <import:org.xml.sax.makeInputSource>(<import:java.io.makeStringReader>(html))), result);
+
+  return result.getNode()
+}
+
+def updocTermToSteps(updoc) {
+  def term`script(inVats(@vatNames*),
+                  [@sequences*])` := updoc
+  
+  return switch (sequences) {
+    # one vat
+    match [term`inVat(@vatName, [@steps*])`] {
+      steps
     }
     
-    def envVar := `${prefix}_eenv`
+    # no vats (empty updoc)
+    match [] {
+      []
+    }
     
-    whetherFoundResolver.resolve(steps.size().aboveZero())
-    
-    return `$\
-      <script>
-        var $envVar = e_makeSafeEnv()
-      </script>
+    # multiple vats
+    match [_, _] + _ {
+      # XXX ejector
+      throw("Cannot convert multiple-vat Updoc.")
+    }
+  }
+}
 
-      ${ accum "" for i => step in steps { _ + {
-        progress.print(".")
-        progress.flush()
-        def term`test(@source,
-                      {@answers*})` := step
+def stepToJS(prefix, i, step, envVar) {
+  def term`test(@{source :String},
+                {@answers*})` := step
 
-        def body := escape syntaxFail {
-          def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
+  def body := escape syntaxFail {
+    def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
 
-          var senv := compiler.importEnv(staticSafeEnv, ast.staticScope())
-          def js := compiler.assignResult("res", ast, &senv)
-          if (js.indexOf1("</") != -1) {
-            throw("Shouldn't happen: found </ in generated JS")
-          }
+    var senv := compiler.importEnv(staticSafeEnv, ast.staticScope())
+    def js := compiler.assignResult("res", ast, &senv)
+    if (js.indexOf1("</") != -1) {
+      throw("Shouldn't happen: found </ in generated JS")
+    }
 
-          `
-            function run_$i() {
-              var res;
-              ${compiler.import(ast.staticScope(), envVar)}
-              $js;
-              ${compiler."export"(envVar, envVar, ast.staticScope(), senv)};
-              return res;
-            }
-
-            function chain_$i() {
-              updoc_runStep(${jsQuote(prefix)}, run_$i, $i, ${prefix}_expected_$i)
-              setTimeout(chain_${i+1}, 1);
-            }
-          `
-        } catch syntaxError {
-          `
-            function chain_$i() {
-              updoc_runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
-              setTimeout(chain_${i+1}, 1);
-            }
-          `
-        }
-        ` 
-          <div class="updoc-step updoc-pending" id="$prefix-step-$i">
-          <pre class="updoc-expr">? ${htmlesc(source)}</pre>
-          <script>
-            var ${prefix}_expected_$i = [${", ".rjoin(
-              accum [] for term`@k:@{v :String}` in answers {
-                _.with(`[${jsQuote(k.getTag().getTagName())},
-                         ${jsQuote(v)}]`)
-              }
-            )}]
-
-            $body
-          </script>
-          ${accum "" for answer in answers { _ + {
-            def term`@{label :String}: @{text :String}` := answer
-            `
-            <pre class="updoc-output-exp" id="$prefix-expect-$i"># ${htmlesc(E.toString(label))}: ${htmlesc(E.toString(text))}</pre>
-            `
-          }}}
-          <pre class="updoc-output-got" id="$prefix-output-$i"></pre>
-        </div>$\n`
-      }}}
-      <script>
-        function chain_${steps.size()} () {
-          // all done!
-        }
-        setTimeout(chain_0, 1)
-      </script>
+    `
+      function ${prefix}_runOuter_$i() {
+        updoc_runStep(${jsQuote(prefix)}, function () {
+          var res;
+          ${compiler.import(ast.staticScope(), envVar)}
+          $js;
+          ${compiler."export"(envVar, envVar, ast.staticScope(), senv)};
+          return res;
+        }, $i, ${prefix}_expected_$i)
+      }
+    `
+  } catch syntaxError {
+    `
+      function ${prefix}_runOuter_$i() {
+        updoc_runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
+      }
     `
   }
-  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. */
+  
+  return `
+    var ${prefix}_expected_$i = [${", ".rjoin(
+      accum [] for term`@k:@{v :String}` in answers {
+        _.with(`[${jsQuote(k.getTag().getTagName())},
+                 ${jsQuote(v)}]`)
+      }
+    )}]
+    $body
+  `
+}
+
+def collectText(node, tw) {
+  # XXX treat block elements and BRs as line breaks. But we probably will throw out this code anyway - see in rewriteDom about not using the updoc parser
+  def childrenNL := node.getChildNodes()
+  def childrenFixed := accum [] for j in 0..!(childrenNL.getLength()) { _.with(childrenNL.item(j)) } # since we append
+  for ch in childrenFixed {
+    if (ch.getNodeType() == TEXT_NODE) {
+      tw.print(ch.getData().replaceAll("\u00A0", " ")) # kill nbsp because the parser doesn't accept it -- XXX the parser should
+    } else {
+      collectText(ch, tw)
+    }
+  }
+}
+
+def rewriteDom(dir, 
+               [=> progress :Writer := nullWriter,
+                => whetherFoundResolver := nullResolver,
+                => prefix
+               ] | _, document) {
+  def head := document.getElementsByTagName("head").item(0)
+  def body := document.getElementsByTagName("body").item(0)
+  {
+    head.appendChild(def e := document.createElementNS(htmlns, "script"))
+    e.setAttribute("src", `$dir/e.js`)
+  }
+  {
+    head.appendChild(def e := document.createElementNS(htmlns, "script"))
+    e.setAttribute("src", `$dir/updoc-driver.js`)
+  }
+  def envVar := `${prefix}_eenv`
+  {
+    head.appendChild(def e := document.createElementNS(htmlns, "script"))
+    e.appendChild(document.createTextNode(`
+      var $envVar = e_makeSafeEnv()
+    `))
+  }
+  {
+    head.appendChild(def e := document.createElementNS(htmlns, "link"))
+    e.setAttribute("rel", `stylesheet`)
+    e.setAttribute("href", `$dir/updoc.css`)
+  }
+  for emaker in commonEmakerList {
+    head.appendChild(def e := document.createElementNS(htmlns, "script"))
+    e.setAttribute("src", `$dir/import/${emaker.replaceAll(".", "/")}.js`)
+  }
+  
+  var stepCounter := -1
+  
+  def pres := document.getElementsByTagName("pre")
+  def presFixed := accum [] for j in 0..!(pres.getLength()) { _.with(pres.item(j)) } # since we add other pres
+  for element in presFixed {
+    # XXX this strategy fails if there is more than one <pre> per step (eg as in our own output, not that this is supposed to be idempotent)
+    progress.print(".")
+    progress.flush()
+    
+    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    collectText(element, tw)
+    def updocText := sb.snapshot()
+
+    { # Generate step markup
+      def updoc := makeUpdocParser.parsePlain(updocText)
+      def steps := updocTermToSteps(updoc)
+      
+      # XXX This procedure fails to preserve non-updoc text inside of <pre>. We need to instead write our own updoc parser which preserves text and markup -- probably should traverse the dom tree while running a state machine, and preserving backpointers to e.g. "enclosing block element"
+      
+      while (element.getChildNodes().getLength() > 0) {
+        element.removeChild(element.getFirstChild())
+      }
+      
+      for step in steps {
+        def i := stepCounter += 1
+        
+        #progress.print(`incrementing counter to $i for $step`)
+
+        def term`test(@{var source :String},
+                      {@answers*})` := step
+
+        require(source.endsWith("\n"))
+        source run= (0, source.size() - 1)
+
+        element.appendChild(def stepDiv := document.createElementNS(htmlns, "div"))
+        stepDiv.setAttribute("class", "updoc-step updoc-pending")
+        stepDiv.setAttribute("id", `$prefix-step-$i`)
+
+        stepDiv.appendChild(def exprPre := document.createElementNS(htmlns, "pre"))
+        exprPre.setAttribute("class", "updoc-expr")
+        exprPre.appendChild(document.createTextNode(`? ${source.replaceAll("\n", "\n> ")}`))
+        
+        stepDiv.appendChild(def stepScript := document.createElementNS(htmlns, "script"))
+        stepScript.appendChild(document.createTextNode(`
+          ${stepToJS(prefix, i, step, envVar)}
+        `))
+        for answer in answers {
+          def term`@{label :String}: @{text :String}` := answer
+          stepDiv.appendChild(def expectPre := document.createElementNS(htmlns, "pre"))
+          expectPre.setAttribute("class", "updoc-output-exp")
+          expectPre.setAttribute("id", "$prefix-expect-$i")
+          expectPre.appendChild(document.createTextNode(`# $label: $text`))
+        }
+        stepDiv.appendChild(def gotPre := document.createElementNS(htmlns, "pre"))
+        gotPre.setAttribute("class", "updoc-output-got")
+        gotPre.setAttribute("id", `$prefix-output-$i`)
+      }
+    }
+  }
+
+  {
+    def body := document.getElementsByTagName("body").item(0)
+    body.appendChild(def e := document.createElementNS(htmlns, "script"))
+    
+    e.appendChild(document.createTextNode(`
+    updoc_run(${jsQuote(prefix)})`))
+  }
+  
+  {
+    def kludge := document.createElementNS(htmlns, "div")
+    kludge.setAttribute("id", "updoc-content-container-for-resize-kludge")
+    while (body.getChildNodes().getLength() > 0) {
+      def move := body.getFirstChild()
+      body.removeChild(move)
+      kludge.appendChild(move)
+    }
+    body.appendChild(kludge)
+  }
+  
+  whetherFoundResolver.resolve(stepCounter > -1)
+}
+
+def compileUpdoc {
+  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. */
   to toHTMLDocument(
     dir :String,
     [=> title :String := "E-on-JavaScript converted Updoc",
-     => documentHeadingLevel :(1..6) := 1
-    ] | options,
+     => documentHeadingLevel :(1..6) := 1,
+     => progress :Writer := nullWriter
+    ] | moreOptions,
     updoc :Term
   ) {
-    return `
-      <html><head>
-        <title>${htmlesc(title)}</title>
-        ${compileUpdoc.getHTMLHeadInclusion(dir)}
-      </head><body>
-        <div id="all-container-for-resize-kludge">
-          <div id="output"></div>
-          <h$documentHeadingLevel>${htmlesc(title)}</h$documentHeadingLevel>
-          ${compileUpdoc.toHTMLFragment("upd1", options, updoc)}
-        </div>
-      </body></html>
-    `
+    def prefix := "updsingleton"
+    # The way this works is that we create a DOM document with the updoc text but no scripting, then apply rewriteDom to it.
+    
+    def dbf := <import:javax.xml.parsers.makeDocumentBuilderFactory>.newInstance()
+    dbf.setNamespaceAware(true) # XXX needed?
+    def document := dbf.newDocumentBuilder().newDocument()
+    
+    document.appendChild(def html := document.createElementNS(htmlns, "html"))
+
+    html.appendChild(def head := document.createElementNS(htmlns, "head"))
+
+    head.appendChild(def titleE := document.createElementNS(htmlns, "title"))
+    titleE.appendChild(document.createTextNode(title))
+
+    html.appendChild(def body := document.createElementNS(htmlns, "body"))
+
+    body.appendChild(def heading := document.createElementNS(htmlns, `h$documentHeadingLevel`))
+    heading.appendChild(document.createTextNode(title))
+    
+    # --- actual updoc processing ---
+    
+    def steps := updocTermToSteps(updoc)
+    def envVar := `${prefix}_eenv`
+    
+    head.appendChild(def e := document.createElementNS(htmlns, "script"))
+    e.appendChild(document.createTextNode(`
+      var $envVar = e_makeSafeEnv()
+    `))
+    
+    for i => step in steps {
+      def term`test(@{var source :String},
+                    {@answers*})` := step
+
+      require(source.endsWith("\n"))
+      source run= (0, source.size() - 1)
+
+      progress.print(".")
+      progress.flush()
+      
+      body.appendChild(def pre := document.createElementNS(htmlns, "pre"))
+      pre.appendChild(document.createTextNode(`? ${source.replaceAll("\n", "\n> ")}
+${accum "" for answer in answers { _ + {
+          def term`@{label :String}: @{text :String}` := answer
+          `# $label: $text$\n`
+        }}}`))
+    }
+    
+    # --- ---
+    
+    progress.print(document.saveXML(document.getDocumentElement()))
+    rewriteDom(dir, moreOptions | ["prefix" => "updsingleton", => progress], document)
+    
+    return document.saveXML(document.getDocumentElement())
   }
-  /** As toHTMLDocument/3, but takes HTML source and produces a HTML document including all the markup of the original, with added Updoc support. (XXX but it doesn't actually do that yet.) */
+  /** As toHTMLDocument/3, but takes HTML source and produces an XHTML document optionally including all the markup of the original, with added Updoc support. */
   to animateHTMLDocument(
+    includeOriginal :boolean,
     dir :String,
     options :Map,
     htmlSource :Twine
   ) {
-    return compileUpdoc.toHTMLDocument(dir, options, makeUpdocParser.parseHtml(htmlSource))
+    if (includeOriginal) {
+      def document := htmlToDom(htmlSource)
+      #document.getElementsByTagName("html").item(0).setAttribute("xmlns", htmlns)
+      rewriteDom(dir, options | ["prefix" => "updsingleton"], document)
+      
+      # XXX it would be better to generate HTML so that we can save with the original .html names
+      return document.saveXML(document.getDocumentElement())
+    } else {
+      return compileUpdoc.toHTMLDocument(dir, options, 
+        makeUpdocParser.parseHtml(htmlSource))
+    }
   }
-  # XXX the following list of emakers is static, not configurable or computed
-  to getHTMLHeadInclusion(dir) { return `$\
-    <!-- E runtime -->
-    <script src="$dir/e.js"></script>
-   
-    <!-- Updoc runtime -->
-    <script src="$dir/updoc-driver.js"></script>
-    <link rel="stylesheet" href="$dir/updoc.css">
-   
-    <!-- Libraries possibly used by updoc code -->
-    ${"\n    ".rjoin(accum "" for emaker in commonEmakerList {
-      _.with(`<script src="$dir/import/${emaker.replaceAll(".", "/")}.js"></script>`)
-    })}
-  `}
   
   /** Create a HTML document which will embed and execute every listed converted-updoc file. */
   to makeUpdocIndexDocument(dir :String, files :List[Tuple[String, any]]) {
-    # XXX this page should run each iframe serially or limited parallel, and monitor them for success/failure and summarize the results.
+    # XXX this page should perhaps have tabs for each subdocument?
     return `$\
  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <html><head>
   <title>E Specification Tests</title>
   <link rel="stylesheet" href="../serve/updoc.css">
   <script src="$dir/updoc-index.js"></script>
-</head><body>
+</head><body onload="updoc_setupIndexPage();">
 
 <h2>Table of contents</h2>
 
 <ol>
 ${accum "" for i => [name, _] in files {
   # XXX URI-encoding
-  _ + `  <li><a href="#updoc-frame-$i">${htmlesc(name)}</a></li>$\n`
+  _ + `  <li><a href="#updoc-frame-$i">${htmlesc(name)}</a> (<span id="updoc-index-status-$i">...</span>) </li>$\n`
 }}
 </ol>
 
@@ -200,8 +344,6 @@ ${accum "" for i => [name, file] in files {
   # XXX URI-encoding
   _ + `  <p><iframe id="updoc-frame-$i" class="updoc-pane" src="${htmlesc(file.getPath())}"><a href="${htmlesc(file.getPath())}">${htmlesc(name)}</a><br></iframe></p>$\n`
 }}</div>
-
-<script>updoc_startAdjustingFrames()</script>
 </body>`
     
   }
