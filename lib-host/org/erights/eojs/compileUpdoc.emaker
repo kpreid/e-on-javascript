@@ -6,7 +6,8 @@ pragma.enable("accumulator")
 
 def compiler := <import:org.erights.eojs.compiler>
 def commonEmakerList := <import:org.erights.eojs.commonEmakerList>
-def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
+#def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
+def staticPrivEnv := <import:org.erights.eojs.makeStaticPrivilegedEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null) # XXX support the user supplying a hash-cache for the animation case
 
@@ -72,7 +73,7 @@ def stepToJS(prefix, i, step, envVar) {
   def body := escape syntaxFail {
     def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
 
-    var senv := compiler.importEnv(staticSafeEnv, ast.staticScope())
+    var senv := compiler.importEnv(staticPrivEnv, ast.staticScope())
     def js := compiler.assignResult("res", ast, &senv)
     if (js.indexOf1("</") != -1) {
       throw("Shouldn't happen: found </ in generated JS")
@@ -140,7 +141,7 @@ def rewriteDom(dir,
   {
     head.appendChild(def e := document.createElementNS(htmlns, "script"))
     e.appendChild(document.createTextNode(`
-      var $envVar = e_makeSafeEnv()
+      var $envVar = e_privilegedEnv
     `))
   }
   {
@@ -241,6 +242,7 @@ def compileUpdoc {
     dir :String,
     [=> title :String := "E-on-JavaScript converted Updoc",
      => documentHeadingLevel :(1..6) := 1,
+     => includeScriptURLs := [],
      => progress :Writer := nullWriter
     ] | moreOptions,
     updoc :Term
@@ -259,6 +261,11 @@ def compileUpdoc {
     head.appendChild(def titleE := document.createElementNS(htmlns, "title"))
     titleE.appendChild(document.createTextNode(title))
 
+    for script in includeScriptURLs {
+      head.appendChild(def e := document.createElementNS(htmlns, "script"))
+      e.setAttribute("src", script)
+    }
+
     html.appendChild(def body := document.createElementNS(htmlns, "body"))
 
     body.appendChild(def heading := document.createElementNS(htmlns, `h$documentHeadingLevel`))
@@ -266,15 +273,7 @@ def compileUpdoc {
     
     # --- actual updoc processing ---
     
-    def steps := updocTermToSteps(updoc)
-    def envVar := `${prefix}_eenv`
-    
-    head.appendChild(def e := document.createElementNS(htmlns, "script"))
-    e.appendChild(document.createTextNode(`
-      var $envVar = e_makeSafeEnv()
-    `))
-    
-    for i => step in steps {
+    for i => step in updocTermToSteps(updoc) {
       def term`test(@{var source :String},
                     {@answers*})` := step
 

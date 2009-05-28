@@ -9,18 +9,35 @@ pragma.enable("accumulator")
 def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
 
+var baseURL := null
+var includeScriptURLs := []
+
+var argsParse := interp.getArgs()
+while (argsParse =~ [`-@_`] + _) {
+  switch (argsParse) {
+    match [=="--base", arg] + rest { baseURL := arg; argsParse := rest }
+    match [=="--script", arg] + rest { includeScriptURLs with= arg; argsParse := rest }
+  }
+}
+
 # XXX allow stdin input
-def [`--base`, baseURL, inputFilename] := interp.getArgs()
+def [inputFilename] := argsParse
 def inputFile := <file>[inputFilename]
 
 def progress := stderr
 
 def conversion := switch (inputFilename) {
   match `@_.html` {
+    if (includeScriptURLs.size().aboveZero()) {
+      throw("--script may not be used with a preexisting HTML document")
+    }
     compileUpdoc.animateHTMLDocument(true, baseURL, [=> progress], inputFile.getTwine())
   }
   match `@_.updoc` {
-    compileUpdoc.toHTMLDocument(baseURL, [=> progress], makeUpdocParser.parsePlain(inputFile.getTwine()))
+    compileUpdoc.toHTMLDocument(baseURL, [
+      => progress,
+      => includeScriptURLs,
+    ], makeUpdocParser.parsePlain(inputFile.getTwine()))
   }
 }
 
