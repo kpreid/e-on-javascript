@@ -25,8 +25,9 @@ var e_cajita = e_cajitaMode ? cajita : {
   "freeze": function (obj) { return e_cajita.snapshot(obj) },
 }
 
-// This variable contains every noun which is globally defined in JS and should be made part of the safeEnv.
+// These variables contains every noun which is globally defined in JS and should be made part of the safeEnv or privilegedEnv.
 var e_safeEnvNames = []
+var e_privilegedEnvNames = []
 
 // --- core - message dispatch facilities ---
 
@@ -55,7 +56,7 @@ function e_NoJsMethod(r, verb, args) {
       return e_null
     } else if (verb === "run") { // Cajita
       // XXX when we have Refs, we will need to shorten the args (deeply) to hide sameness non-differences
-      return cajita.callPub(r, "call", [cajita.USELESS, args])
+      return cajita.callPub(r, "apply", [cajita.USELESS, args])
     } else {
       if (verb[0] === ".") { // dot escapes special verbs, has no other meaning
         verb = verb.slice(1)
@@ -746,11 +747,22 @@ e_Env.prototype.emsg_withSlot_2 = function (insertNoun, slot) {
   newTable[insertNoun] = slot
   return new e_Env(newTable)
 }
+e_Env.prototype.emsg_with_2 = function (insertNoun, value) {
+  return this.emsg_withSlot_2(insertNoun, e_makeFinalSlot(value))
+}
 
 function e_makeSafeEnv() {
   var table = {}
   for (var i = 0; i < e_safeEnvNames.length; i++) {
     table[e_safeEnvNames[i]] = window[e_slotVarName(e_safeEnvNames[i])]
+  }
+  return new e_Env(table)
+}
+
+function e_makePrivilegedEnv() {
+  var table = {}
+  for (var i = 0; i < e_safeEnvNames.length; i++) {
+    table[e_privilegedEnvNames[i]] = window[e_slotVarName(e_privilegedEnvNames[i])]
   }
   return new e_Env(table)
 }
@@ -812,16 +824,32 @@ var e_jsTools = {
     var f = function () {
       return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0))
     }
-    return cajita ? ___.func(f) : f;
-  }
-}
+    return e_cajitaMode ? ___.func(f) : f;
+  },
+  emsg_asObject_1: function (map) {
+    var result = {};
+    var live = 0;
+    e_call(map, "iterate", [
+      e_wrapJsFunction(function (key, value) {
+        result[key] = value;
+      })
+    ]);
+    return e_cajitaMode ? ___.freeze(result) : result;
+  },
+};
 var e_maker_org_$erights_$eojs_$jsTools = function () { return e_jsTools }
 
 // --- privileged scope library -- XXX shouldn't be named by the global name convention?
 
-var e_slot_alert = e_makeFinalSlot({emsg_run_1: function(v) {alert(v)}})
+var e_EoJS = {emsg_asyncLoad_1: function (url) {
+  var script = document.createElement("script");
+  script.setAttribute("src", url);
+  script.setAttribute("type", "text/javascript");
+  document.getElementsByTagName("head")[0].appendChild(script);
+  return e_null;
+}}
 
-var e_slot_timer = e_makeFinalSlot({
+var e_timer = {
   emsg_now_0: function () { return new Date().getTime() },
   emsg_whenPast_2: function (time, efunc) {
     time = e_number_guard.emsg_coerce_2(time, e_throw)
@@ -832,4 +860,19 @@ var e_slot_timer = e_makeFinalSlot({
                offset)
   },
   toString: function () { return "<timer>" },
-})
+};
+
+var e_privilegedEnv = e_makeSafeEnv()
+  .emsg_with_2("cajitaPriv", e_cajitaMode ? {
+    // XXX this exists because the ___ functions in Cajita are 'unsafe' operations so we can't just use the cajita bridge
+    emsg_setNewModuleHandler_1: function (x) {
+      ___.setNewModuleHandler(x);
+      return e_null;
+    },
+    emsg_getNewModuleHandler_0: ___.getNewModuleHandler,
+    emsg_get____0: function () { return ___ },
+  } : undefined)
+  .emsg_with_2("timer", e_timer)
+  .emsg_with_2("alert", e_wrapJsFunction(alert))
+  .emsg_with_2("EoJS", e_EoJS);
+  

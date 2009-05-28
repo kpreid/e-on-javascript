@@ -87,13 +87,21 @@ An Updoc file can be converted into a HTML document which runs its code and disp
   
 There is also a multi-file updoc runner; it is used in the standard test suite (make-test.e).
 
---- Implementation notes
+--- Cajita bridge
 
-If Cajita is loaded, then JavaScript objects' properties are visible to E code, subject to Cajita taming.
+When Cajita is loaded, the following behaviors are enabled:
+
+Any Cajita object given to E code has the verbs get/1 and put/2, accessing properties, and run/*, calling it as a function.
+
+A verb beginning with ".", or not on the above list of special verbs, specifies a JS method call. That is, E 'obj.foo()' is equivalent to Cajita 'obj.foo()' and E 'obj.".get"()' is equivalent to Cajita 'obj.get()'.
+
+XXX complete this list with other Cajita related behavior
+
+--- Implementation notes
 
 Since JavaScript null and undefined throw when called, E's null is a distinct object (e_null), and JS null and undefined are considered kinds of broken reference.
 
-All JS Arrays are considered ConstLists unless Cajita is loaded, in which case only Cajita-frozen Arrays are ConstLists.
+All JS Arrays are considered ConstLists unless Cajita is loaded, in which case only Cajita-frozen Arrays are ConstLists. This means that you should avoid passing arrays which will be mutated into EoJS code unless you also hava Cajita loaded.
 
 --- Todo list
 
