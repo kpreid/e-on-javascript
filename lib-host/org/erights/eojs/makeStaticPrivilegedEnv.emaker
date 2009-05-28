@@ -1,0 +1,22 @@
+# Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
+# found at http://www.opensource.org/licenses/mit-license.html ................
+
+pragma.syntax("0.9")
+
+def makeStaticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>
+
+def makeStaticPrivilegedEnv(compiler) {
+  def safeEnv := makeStaticSafeEnv(compiler)
+  def withSlot := compiler.getBindEnvMaker()
+  
+  var senv := safeEnv
+  for name in [
+    "timer",
+    
+    # EoJS specific
+    "alert", "EoJS", "cajitaPriv", "cajita",
+  ] {
+    senv := withSlot(senv, name)
+  }
+  return senv
+}
