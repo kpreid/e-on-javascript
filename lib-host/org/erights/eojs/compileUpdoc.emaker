@@ -294,7 +294,7 @@ ${accum "" for answer in answers { _ + {
     
     # --- ---
     
-    progress.print(document.saveXML(document.getDocumentElement()))
+    #progress.print(document.saveXML(document.getDocumentElement()))
     rewriteDom(dir, moreOptions | ["prefix" => "updsingleton", => progress], document)
     
     return document.saveXML(document.getDocumentElement())
