@@ -12,7 +12,7 @@
   "org.erights.e.elang.expand.comparer",
   "org.erights.e.elang.expand.makeViaExtractor",
   "org.erights.e.elang.expand.makeViaQuasi",
-  "org.erights.e.elang.expand.makeViaSame",
+  "org.erights.e.elang.expand.__is",
   "org.erights.e.elang.expand.slotToBinding",
   "org.erights.e.elang.expand.suchThat",
   "org.erights.e.elang.expand.__Test",

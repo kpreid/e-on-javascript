@@ -73,7 +73,7 @@ def stepToJS(prefix, i, step, envVar) {
   def body := escape syntaxFail {
     def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
 
-    var senv := compiler.importEnv(staticPrivEnv, ast.staticScope())
+    var senv := compiler.importEnv(compiler.getBindEnvMaker()(staticPrivEnv, "interp"), ast.staticScope())
     def js := compiler.assignResult("res", ast, &senv)
     if (js.indexOf1("</") != -1) {
       throw("Shouldn't happen: found </ in generated JS")
@@ -138,10 +138,12 @@ def rewriteDom(dir,
     e.setAttribute("src", `$dir/updoc-driver.js`)
   }
   def envVar := `${prefix}_eenv`
+  def updocVar := `${prefix}_driver`
   {
     head.appendChild(def e := document.createElementNS(htmlns, "script"))
     e.appendChild(document.createTextNode(`
-      var $envVar = e_privilegedEnv
+      var $updocVar = new updoc_Driver(${jsQuote(prefix)})
+      var $envVar = $updocVar.augmentEnv(e_privilegedEnv)
     `))
   }
   {
@@ -219,7 +221,7 @@ def rewriteDom(dir,
     body.appendChild(def e := document.createElementNS(htmlns, "script"))
     
     e.appendChild(document.createTextNode(`
-    updoc_run(${jsQuote(prefix)})`))
+    $updocVar.run()`))
   }
   
   {

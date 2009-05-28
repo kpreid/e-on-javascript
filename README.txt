@@ -12,6 +12,7 @@ It is rather sketchy: various parts are sufficient only to run the test cases I'
 0. You will need:
   - An installation of E-on-Java
   - The lib/ directory from E-on-CL (because it has some useful emakers where E-on-Java has only Java code.)
+  - tagsoup.jar (from <http://home.ccil.org/~cowan/XML/tagsoup/>).
 
 1. Symlink or copy E-on-CL's lib/ to lib-target-eocl/ in the E-on-JS directory.
 

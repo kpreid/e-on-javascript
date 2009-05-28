@@ -18,7 +18,7 @@ def makeEqualizer(shallowEq) {
     to sameYet(a, b) { return shallowEq(equalizer.optSame(a, b), true) }
     to optSame(a, b) {
       # XXX use non-E printing
-      traceln("optSame: entering " + E.toQuote(a) + " " + E.toQuote(b))
+      # traceln("optSame: entering " + E.toQuote(a) + " " + E.toQuote(b))
       if (shallowEq(a, b)) {
         traceln("optSame: leaving, shallow eq")
         return true

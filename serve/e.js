@@ -23,6 +23,14 @@ var e_cajita = e_cajitaMode ? cajita : {
     }
   },
   "freeze": function (obj) { return e_cajita.snapshot(obj) },
+  "hasOwnPropertyOf": function (o, p) { return o.hasOwnProperty(p) },
+  "ownKeys": function (obj) {
+    var result = [];
+    for (var prop in obj) {
+      result.push(prop);
+    }
+    return e_cajita.freeze(result);
+  },
 }
 
 // These variables contains every noun which is globally defined in JS and should be made part of the safeEnv or privilegedEnv.
@@ -33,10 +41,20 @@ var e_privilegedEnvNames = []
 
 function e_noSuchMethod(r, v, a) {
   var ty = typeof(r)
+  var typeAndPrint;
   if (ty === "object") {
-    ty = r.constructor.toString().split("\n")[0]
+    ty = r.constructor.toString().split("\n")[0] // XXX better name extraction -- regexp?
+    if (r.constructor === Object) {
+      // XXX this logic should be in TextWriter
+      typeAndPrint = "<{" + e_cajita.ownKeys(r).toString() + "}>";
+    } else {
+      typeAndPrint = ty + " " + r
+    }
+  } else {
+    typeAndPrint = ty + " " + r
   }
-  throw new Error("no such method: " + ty + " " + r + "." + v + "(" + a + ")")
+  // XXX this should go by way of E.toString()
+  throw new Error("no such method: " + typeAndPrint + "." + v + "(" + a + ")")
 }
 
 // called whenever an E-called object doesn't have an appropriately named JS method
@@ -44,6 +62,19 @@ function e_NoJsMethod(r, verb, args) {
   if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine as they are considered broken refs
     // If r has an emsg method, 
     return r.emsg(verb, e_cajita.freeze(args))
+  } else if (verb === "__printOn" && args.length === 1) {
+    // Miranda method. XXX provide Miranda separately for emsg implementations
+    var out = args[0];
+    var s;
+    if (typeof(r) !== "object") {
+      s = r.toString();
+    } else if (r.constructor === Object && !e_cajita.hasOwnPropertyOf(r, "toString")) {
+      s = "<{" + e_cajita.ownKeys(r).toString() + "}>";
+    } else {
+      s = r.toString();
+    }
+    e_call(out, "write", [s]);
+    return e_null;
   } else {
     if (!e_cajitaMode) {
       return e_noSuchMethod(r, verb, args)
@@ -109,7 +140,8 @@ e_Ejector.toString = function () { return "<ejector>" }
 // --- ref primitives ---
 
 function e_refShorten(ref) { // used only by RefAuthor so far
-  return ref // XXX stub.
+  // XXX We must review what to do about Cajita objects having arbitrary e_shorten, e_isResolved, etc properties. Any way to do branding in JS?
+  return (ref !== null && ref !== undefined && ref.e_shorten) ? ref.e_shorten() : ref
 }
 
 function e_refState(ref) { // used only by RefAuthor so far
@@ -130,7 +162,7 @@ function e_refOptProblem(ref) { // used only by RefAuthor so far
 }
 
 function e_refIsResolved(ref) { // used only by RefAuthor so far
-  return ref.e_isResolved ? ref.e_isResolved() : true
+  return (ref !== null && ref !== undefined && ref.e_isResolved) ? ref.e_isResolved() : true
 }
 
 function e_makeUnconnectedRef(problem) { // used only by RefAuthor so far
@@ -301,9 +333,12 @@ function e_Promise(bufferCell) {
 e_Promise.prototype.e_isResolved = function () {
   return this.resolved && e_refIsResolved(this.resolution)
 }
+e_Promise.prototype.e_shorten = function () {
+  return this.resolved ? this.resolution : this
+}
 e_Promise.prototype.emsg = function (v, a) {
   if (this.resolved)
-    e_call(this.resolution, v, a)
+    return e_call(this.resolution, v, a);
   else
     throw new Error("not synchronously callable")
 }
@@ -333,7 +368,10 @@ function e_makePromise() {
     emsg___printOn_1: function (out) { 
       e_call(out, "write", ["<Resolver>"])
     },
-  }
+    emsg_isDone_0: function () {
+      return promise.resolved;
+    },
+  };
   return e_cajita.freeze([promise, resolver])
 }
 
@@ -475,6 +513,12 @@ Array.prototype.emsg_snapshot_0 = function () {
 Array.prototype.emsg_diverge_1 = function (guard) {
   return e_call(e_import("org.erights.e.elib.tables.makeFlexList"), "diverge", [this, guard])
 }
+Array.prototype.emsg_iterate_1 = function (assocFunc) {
+  // XXX If we are running under Cajita and this is not a frozen array, we should take a snapshot.
+  for (var i = 0; i < this.length; i++) {
+    e_call(assocFunc, "run", [i, this[i]]);
+  }
+};
 
 Number.prototype.emsg___printOn_1 = e_toStringPrint
 Number.prototype.emsg_op__cmp_1 = function (other) {
@@ -665,7 +709,7 @@ e_addImportToSafe("__makeOrderedSpace", "org.erights.e.elang.coord.makeOrderedSp
 e_addImportToSafe("__makeVerbFacet", "org.erights.e.elang.expand.__makeVerbFacet")
 e_addImportToSafe("__mapEmpty"     , "org.erights.e.elang.expand.viaEmptyMap")
 e_addImportToSafe("__mapExtract"   , "org.erights.e.elang.expand.makeViaExtractor")
-e_addImportToSafe("__matchSame"    , "org.erights.e.elang.expand.makeViaSame")
+e_addImportToSafe("__is"           , "org.erights.e.elang.expand.__is") // XXX EoJ's expander only
 e_addImportToSafe("__quasiMatcher" , "org.erights.e.elang.expand.makeViaQuasi")
 e_addImportToSafe("__slotToBinding", "org.erights.e.elang.expand.slotToBinding")
 e_addImportToSafe("__splitList"    , "org.erights.e.elang.expand.__splitList")

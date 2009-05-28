@@ -2,6 +2,7 @@
 # found at http://www.opensource.org/licenses/mit-license.html ................
 
 # just modified from E-on-CL, remove distinct as soon as we're not using EoJ-parser-without-implements
+# Also, for bootstrap purposes, avoid using == patterns
 
 pragma.syntax("0.8")
 pragma.disable("explicit-result-guard")
@@ -27,11 +28,7 @@ def RefAuthor {
       to isEventual(r) :any { refState(r) == sElibEventual }
       to isFar(r) :any { refState(r) == sElibEventual && refIsResolved(r) }
       to state(r) :any {
-        switch (refState(r)) {
-          match ==sElibNear     { return "NEAR" }
-          match ==sElibEventual { return "EVENTUAL" }
-          match ==sElibBroken   { return "BROKEN" }
-        }
+        return refState(r)
       }
       
       to isSettled(r)  :any { __equalizer.isSettled(r) }

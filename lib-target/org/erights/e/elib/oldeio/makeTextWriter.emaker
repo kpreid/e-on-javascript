@@ -16,10 +16,23 @@ def makeTextWriter {
         strings.push(text)
       }
       to quote(x) {
-        x.__printOn(textWriter)
+        textWriter.print(x)
       }
       to print(x) {
-        x.__printOn(textWriter)
+        def state := Ref.state(x)
+        if (state == "NEAR") {
+          x.__printOn(textWriter)
+        } else if (state == "BROKEN") {
+          textWriter.write("<ref broken by ")
+          textWriter.print(Ref.optProblem(x))
+          textWriter.write(">")
+        } else { # state == "EVENTUAL"
+          if (Ref.isResolved(x)) {
+            textWriter.write("<Far ref>")
+          } else {
+            textWriter.write("<Promise>")
+          }
+        }
       }
     }
     return [textWriter, buffer]
