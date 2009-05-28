@@ -54,6 +54,7 @@ function e_NoJsMethod(r, verb, args) {
       cajita.setPub(r, propName, args[1])
       return e_null
     } else if (verb === "run") { // Cajita
+      // XXX when we have Refs, we will need to shorten the args (deeply) to hide sameness non-differences
       return cajita.callPub(r, "call", [cajita.USELESS, args])
     } else {
       if (verb[0] === ".") { // dot escapes special verbs, has no other meaning
@@ -128,7 +129,7 @@ function e_refOptProblem(ref) { // used only by RefAuthor so far
 }
 
 function e_refIsResolved(ref) { // used only by RefAuthor so far
-  return true // xxx stub
+  return ref.e_isResolved ? ref.e_isResolved() : true
 }
 
 function e_makeUnconnectedRef(problem) { // used only by RefAuthor so far
@@ -241,7 +242,8 @@ function e_wrapJsFunction(jsFunction) {
     return {
       emsg: function (verb, args) {
         if (verb === "run") {
-          return jsFunction(args)
+          // XXX when we have Refs, we will need to shorten these args (deeply) to hide sameness non-differences
+          return jsFunction.apply({}, args)
         } else {
           e_noSuchMethod(this, verb, args) // XXX miranda?
         }
@@ -291,21 +293,45 @@ e_Character.prototype.toString = function () {
 }
 // XX character methods
 
-function e_ForwardingRef(target) {
-  this.target = target
+function e_Promise(bufferCell) {
+  this.resolved = false
+  this.bufferCell = bufferCell
+}
+e_Promise.prototype.e_isResolved = function () {
+  return this.resolved && e_refIsResolved(this.resolution)
+}
+e_Promise.prototype.emsg = function (v, a) {
+  if (this.resolved)
+    e_call(this.resolution, v, a)
+  else
+    throw new Error("not synchronously callable")
+}
+// XXX nonnear refs should have no emsg_ properties; this is a quick hack
+e_Promise.prototype.emsg___printOn_1 = function (out) {
+  if (this.resolved)
+    e_call(this.resolution, "__printOn", arguments)
+  else
+    e_call(out, "write", ["<Promise>"])
+}
+e_Promise.prototype.toString = function () { 
+  if (this.resolved)
+    return "<promise resolved to " + this.resolution.toString() + ">"
+  else
+    return "<promise>"
 }
 
 function e_makePromise() {
-  var promise = {
-    toString: function () { return "<promise>" },
-  }
+  var buffer = []
+  var promise = new e_Promise(buffer)
   var resolver = {
     emsg_resolve_1: function (target) {
-      promise.target = target
-      promise.__proto__ = e_ForwardingRef.prototype
-      promise.constructor = e_ForwardingRef
+      promise.resolution = target
+      promise.resolved = true
+      promise.bufferCell = null
     },
-    toString: function () { return "<resolver>" },
+    emsg___printOn_1: function (out) { 
+      e_call(out, "write", ["<Resolver>"])
+    },
   }
   return e_cajita.freeze([promise, resolver])
 }
@@ -325,11 +351,6 @@ var e_throw = {
     throw new Error("ejector returned") // XXX more specific error
   },
   toString: function () { return "<E throw>" },
-}
-
-var e_equalizer = {
-  toString: function () { return "<Equalizer>" },
-  
 }
 
 function e_makeFinalSlot(value) {
@@ -783,6 +804,10 @@ var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard }
 
 var e_jsTools = {
   // convert an E function object into a JavaScript function
+  emsg___printOn_1: function (out) {
+    e_call(out, "write", ["<jsTools>"]);
+    return e_null;
+  },
   emsg_asFunction_1: function (eFunc) {
     var f = function () {
       return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0))
