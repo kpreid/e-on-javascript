@@ -52,7 +52,7 @@ var index := []
 stderr.println("Animating...")
 convertDir.mkdirs(null)
 for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
-  def convertedFile := convertDir[`$name.html`]
+  def convertedFile := convertDir[`$name.xhtml`]
 
   stderr.print(`  $name`)
   convertedFile.setText(
@@ -71,6 +71,7 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
   stderr.println()
 }
 
-convertDir["index.html"].setText(compileUpdoc.makeUpdocIndexDocument("../serve", index))
+def indexFile := convertDir["index.html"]
+indexFile.setText(compileUpdoc.makeUpdocIndexDocument("../serve", index))
 
-stderr.println("\u0007Done.")
+stderr.println(`$\u0007Done. Open $indexFile to run the tests.`)
