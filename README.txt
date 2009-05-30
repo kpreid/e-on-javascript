@@ -16,6 +16,8 @@ It is rather sketchy: various parts are sufficient only to run the test cases I'
 
 1. Symlink or copy E-on-CL's lib/ to lib-target-eocl/ in the E-on-JS directory.
 
+2. Run make-libs.e. (There will be a lot of errors due to E code not quite fully supported; don't worry about them.)
+
 --- Test suite
 
 Run make-test.e (which will download and compile the E specification test suite from wiki.erights.org), then open test-conv/index.html, which will load a series of iframes with each test file. Note that the conversion does not perfectly preserve the original document content: in particular, non-updoc text inside <pre> is not preserved. Also, there is currently a lot of unstyled navigation-bar cruft.

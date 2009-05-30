@@ -39,22 +39,21 @@ var e_privilegedEnvNames = []
 
 // --- core - message dispatch facilities ---
 
-function e_noSuchMethod(r, v, a) {
-  var ty = typeof(r)
-  var typeAndPrint;
-  if (ty === "object") {
-    ty = r.constructor.toString().split("\n")[0] // XXX better name extraction -- regexp?
-    if (r.constructor === Object) {
-      // XXX this logic should be in TextWriter
-      typeAndPrint = "<{" + e_cajita.ownKeys(r).toString() + "}>";
-    } else {
-      typeAndPrint = ty + " " + r
-    }
-  } else {
-    typeAndPrint = ty + " " + r
+function e_defaultPrint(obj) {
+  var s = "" + obj; // safe toString()
+  if (s === "[object Object]") {
+    s = "<{" + e_cajita.ownKeys(obj).toString() + "}>";
   }
-  // XXX this should go by way of E.toString()
-  throw new Error("no such method: " + typeAndPrint + "." + v + "(" + a + ")")
+  return s;
+}
+
+function e_noSuchMethod(r, v, a) {
+  var ty = typeof(r);
+  if (ty === "object") {
+    ty = r.constructor.toString().split("\n")[0]; // XXX better name extraction -- regexp?
+  }
+  // XXX this should go by way of E.toString() once we have crash protections
+  throw new Error("no such method: " + ty + " " + e_defaultPrint(r) + "." + v + "(" + a + ")")
 }
 
 // called whenever an E-called object doesn't have an appropriately named JS method
@@ -65,15 +64,7 @@ function e_NoJsMethod(r, verb, args) {
   } else if (verb === "__printOn" && args.length === 1) {
     // Miranda method. XXX provide Miranda separately for emsg implementations
     var out = args[0];
-    var s;
-    if (typeof(r) !== "object") {
-      s = r.toString();
-    } else if (r.constructor === Object && !e_cajita.hasOwnPropertyOf(r, "toString")) {
-      s = "<{" + e_cajita.ownKeys(r).toString() + "}>";
-    } else {
-      s = r.toString();
-    }
-    e_call(out, "write", [s]);
+    e_call(out, "write", [e_defaultPrint(r)]);
     return e_null;
   } else {
     if (!e_cajitaMode) {
@@ -296,7 +287,11 @@ var e_e = {
   },
   emsg_send_3: function (r, v, a) {
     // XXX return value
-    setTimeout(function () { e_call(r, v, a) }, 0)
+    setTimeout(function () { e_call(r, v, a) }, 0);
+  },
+  emsg_sendOnly_3: function (r, v, a) {
+    setTimeout(function () { e_call(r, v, a) }, 0);
+    return e_null;
   },
   emsg_toString_1: function (what) { 
     var tb = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", [])
