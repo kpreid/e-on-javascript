@@ -429,6 +429,9 @@ function e_ConstMap(keys, values) {
 }
 e_fqnTable[e_ConstMap] = "org.erights.e.elib.tables.constMap"
 e_ConstMap.prototype.toString = function () { return "<const" + "Map>" }
+e_ConstMap.prototype.emsg___printOn_1 = function (out) {
+  e_call(this, "printOn", ["[", " => ", ", ", "]", out])
+}
 e_ConstMap.prototype.emsg_size_0 = function () { return this.keys.length }
 e_ConstMap.prototype.emsg_iterate_1 = function (f) {
   var i
@@ -447,6 +450,10 @@ e_ConstMap.prototype.emsg_fetch_2 = function (k, f) {
 e_ConstMap.prototype.emsg = e_sugarHandler
 
 e_makeMap = {
+    emsg_fromColumns_2: function (keys, values) {
+      // XXX check columns are arrays
+      return new e_ConstMap(e_cajita.snapshot(keys), e_cajita.snapshot(values));
+    },
     emsg_fromPairs_1: function (pairs) {
       pairs = e_ConstList_guard.emsg_coerce_2(pairs, e_throw)
       var keys = []
@@ -483,6 +490,17 @@ Array.prototype.emsg___printOn_1 = function (out) {
     e_call(out, "write", ["<JS array>"])
   }
 }
+
+// XXX asKeys and asMap should be sugar
+Array.prototype.emsg_asKeys_0 = function () {
+  var nulls = [];
+  for (var i = 0; i < this.length; i++) nulls[i] = e_null;
+  return e_call(e_makeMap, "fromColumns", [e_cajita.snapshot(this), e_cajita.freeze(nulls)]);
+}
+Array.prototype.emsg_asMap_0 = function () {
+  return e_call(e_makeMap, "fromIteratable", [this, true, e_throw]);
+}
+
 Array.prototype.emsg_multiply_1 = function (times) {
   other = e_number_guard.emsg_coerce_2(times, e_throw)
   var res = []
@@ -854,17 +872,20 @@ var e_makeSameGuard = {
 var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard } // XXX inappropriate fqn
 
 var e_jsTools = {
-  // convert an E function object into a JavaScript function
+  emsg_undefined_0: function () { return undefined; },
+  emsg_null_0: function () { return null; },
   emsg___printOn_1: function (out) {
     e_call(out, "write", ["<jsTools>"]);
     return e_null;
   },
+  // convert an E function object into a JavaScript function
   emsg_asFunction_1: function (eFunc) {
     var f = function () {
       return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0))
     }
     return e_cajitaMode ? ___.func(f) : f;
   },
+  // convert an E map object into a JavaScript object. XXX this is probably Cajita-unsafe -- use appropriate Cajita runtime operations.
   emsg_asObject_1: function (map) {
     var result = {};
     var live = 0;
@@ -877,6 +898,7 @@ var e_jsTools = {
   },
 };
 var e_maker_org_$erights_$eojs_$jsTools = function () { return e_jsTools }
+var e_maker_org_$erights_$eojs_$cajita = function () { return cajita }
 
 // --- privileged scope library -- XXX shouldn't be named by the global name convention?
 
