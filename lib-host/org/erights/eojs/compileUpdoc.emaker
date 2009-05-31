@@ -100,9 +100,13 @@ def stepToJS(prefix, i, step, envVar) {
   
   return `
     var ${prefix}_expected_$i = [${", ".rjoin(
-      accum [] for term`@k:@{v :String}` in answers {
-        _.with(`[${jsQuote(k.getTag().getTagName())},
-                 ${jsQuote(v)}]`)
+      accum [] for term`@k:@{var v :String}` in answers {
+        _.with(if (k =~ term`problem` && v =~ `@s$\n`) {
+                 # work around quirk of updoc parser which produces mismatches -- XXX discuss with MarkM -- kpreid 2009-05-31
+                 v := s
+               }
+               `[${jsQuote(k.getTag().getTagName())},
+                      ${jsQuote(v)}]`)
       }
     )}]
     $body
@@ -203,7 +207,7 @@ def rewriteDom(dir,
           ${stepToJS(prefix, i, step, envVar)}
         `))
         for answer in answers {
-          def term`@{label :String}: @{text :String}` := answer
+          def term`@{label :String}: @{var text :String}` := answer
           stepDiv.appendChild(def expectPre := document.createElementNS(htmlns, "pre"))
           expectPre.setAttribute("class", "updoc-output-exp")
           expectPre.setAttribute("id", "$prefix-expect-$i")

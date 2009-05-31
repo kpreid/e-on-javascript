@@ -41,4 +41,5 @@ def conversion := switch (inputFilename) {
   }
 }
 
+progress.println()
 stdout.print(conversion)
