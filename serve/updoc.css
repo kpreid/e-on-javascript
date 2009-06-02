@@ -9,6 +9,12 @@
 .updoc-output-exp { color: gray; }
 .updoc-output-got { color: red; }
 
+.updoc-expr, .updoc-output-exp, .updoc-output-got {
+  /* ensures that the ?>> is adjacent to the # as in standard updoc view */
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* --- not-yet-run --- */
 
 .updoc-step.updoc-pending {

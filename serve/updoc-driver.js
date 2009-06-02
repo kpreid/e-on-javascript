@@ -63,7 +63,7 @@ function updoc_runStep(prefix, func, index, expectedAnswers) {
     }
   } catch (exception) {
     // .stack is defined in Firefox
-    answers.push(["problem", "" + exception, exception.stack])
+    answers.push(["problem", e_call(e_e, "toQuote", [exception]), exception.stack]);
   }
   
   updoc_finishStep(prefix, index, answers, expectedAnswers)
