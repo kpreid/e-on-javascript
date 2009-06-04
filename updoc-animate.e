@@ -33,8 +33,9 @@ def conversion := switch (inputFilename) {
     }
     compileUpdoc.animateHTMLDocument(true, baseURL, [=> progress], inputFile.getTwine())
   }
-  match `@_.updoc` {
+  match `@name.updoc` {
     compileUpdoc.toHTMLDocument(baseURL, [
+      "title" => name,
       => progress,
       => includeScriptURLs,
     ], makeUpdocParser.parsePlain(inputFile.getTwine()))
