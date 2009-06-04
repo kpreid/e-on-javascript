@@ -899,6 +899,7 @@ var e_jsTools = {
 };
 var e_maker_org_$erights_$eojs_$jsTools = function () { return e_jsTools }
 var e_maker_org_$erights_$eojs_$cajita = function () { return cajita }
+var e_maker_org_$erights_$eojs_$cajitaEnv = function () { return ___.sharedImports }
 
 // --- privileged scope library -- XXX shouldn't be named by the global name convention?
 

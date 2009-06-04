@@ -1,4 +1,4 @@
-  Copyright 2008 Kevin Reid, under the terms of the MIT X license
+  Copyright 2008-2009 Kevin Reid, under the terms of the MIT X license
   found at http://www.opensource.org/licenses/mit-license.html ................
 
 This is E-on-JavaScript.
@@ -99,6 +99,7 @@ Any Cajita object given to E code has the verbs get/1 and put/2, accessing prope
 A verb beginning with ".", or not on the above list of special verbs, specifies a JS method call. That is, E 'obj.foo()' is equivalent to Cajita 'obj.foo()' and E 'obj.".get"()' is equivalent to Cajita 'obj.get()'.
 
 <import:org.erights.eojs.cajita> returns the 'cajita' object.
+<import:org.erights.eojs.cajitaEnv> returns the '___.sharedImports' object.
 
 XXX complete this list with other Cajita related behavior
 
