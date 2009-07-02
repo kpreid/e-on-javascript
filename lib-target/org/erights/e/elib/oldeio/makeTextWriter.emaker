@@ -28,9 +28,6 @@ def _makeTextWriter(strings, exitMap) {
       strings.push(text)
     }
     to quote(x) {
-      textWriter.print(x)
-    }
-    to print(x) {
       escape notFound {
         def name := exitMap.fetch(x, notFound)
         textWriter.write(name)
@@ -57,6 +54,17 @@ def _makeTextWriter(strings, exitMap) {
           textWriter.write("<Promise>")
         }
       }
+    }
+    to print(x) {
+      escape fail {
+        textWriter.write(String.coerce(x, fail)) # XXX don't accept coercion only sameness
+        return
+      }
+      textWriter.quote(x)
+    }
+    to println(x) {
+      textWriter.print(x)
+      textWriter.write("\n")
     }
      # XXX Should changing the exit map not be part of the writer interface at all, but rather be on the buffer/read end?
     to withExits(addedExits) {
