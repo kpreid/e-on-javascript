@@ -5,7 +5,7 @@
 
 pragma.syntax("0.9")
 
-def makeEqualizer(shallowEq) {
+def makeEqualizer(shallowEq, refShorten) {
   def equalizer {
     to sameEver(a, b) {
       def answer := shallowEq(equalizer.optSame(a, b), true)
@@ -21,6 +21,12 @@ def makeEqualizer(shallowEq) {
       # traceln("optSame: entering " + E.toQuote(a) + " " + E.toQuote(b))
       if (shallowEq(a, b)) {
         traceln("optSame: leaving, shallow eq")
+        return true
+      }
+      def shortA := refShorten(a)
+      def shortB := refShorten(b)
+      if (shallowEq(shortA, shortB)) {
+        traceln("optSame: leaving, shortened eq")
         return true
       }
       traceln("optSame: leaving, different")

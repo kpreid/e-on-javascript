@@ -15,9 +15,9 @@ var e_cajitaMode = !!window.cajita
 // Stub for Cajita facilities if Cajita isn't loaded
 var e_cajita = e_cajitaMode ? cajita : {
   "snapshot": function (obj) {
-    if (obj instanceof Array) {
-      // without Cajita we consider all Arrays frozen
-      return obj
+    if (obj instanceof Array || obj.constructor == Object) {
+      // without Cajita we consider all Arrays and direct Objects frozen
+      return obj;
     } else {
       throw new Error("e_cajita.snapshot not implemented in general (" + obj + ")")
     }
@@ -67,6 +67,11 @@ function e_NoJsMethod(r, verb, args) {
     // Miranda method. XXX provide Miranda separately for emsg implementations
     var out = args[0];
     e_call(out, "write", [e_defaultPrint(r)]);
+    return e_null;
+  } else if (verb === "__whenMoreResolved" && args.length === 1) {
+    // Miranda method. XXX provide Miranda separately for emsg implementations
+    var reactor = args[0];
+    e_send(reactor, "run", [r]);
     return e_null;
   } else {
     if (!e_cajitaMode) {
@@ -132,16 +137,19 @@ e_Ejector.toString = function () { return "<ejector>" }
 
 // --- ref primitives ---
 
+// XXX We must review what to do about Cajita objects having arbitrary e_shorten, e_isResolved, etc properties. Use Cajita's trademark system.
+
 function e_refShorten(ref) { // used only by RefAuthor so far
-  // XXX We must review what to do about Cajita objects having arbitrary e_shorten, e_isResolved, etc properties. Any way to do branding in JS?
-  return (ref !== null && ref !== undefined && ref.e_shorten) ? ref.e_shorten() : ref
+  return (ref !== null && ref !== undefined && ref.e_shorten) ? ref.e_shorten() : ref;
 }
 
 function e_refState(ref) { // used only by RefAuthor so far
   if (ref === null || ref === undefined) {
-    return "BROKEN"
+    return "BROKEN";
+  } else if (ref.e_refState) {
+    return ref.e_refState();
   } else {
-    return "NEAR"
+    return "NEAR";
   }
 }
 
@@ -163,7 +171,39 @@ function e_makeUnconnectedRef(problem) { // used only by RefAuthor so far
 }
 
 function e_refOptSealedDispatch(recip, brand) { // used only by RefAuthor so far
-  return e_call(recip, "__optSealedDispatch", [brand])
+  // stub: does not do the magic eventual ref invocation
+  return e_call(recip, "__optSealedDispatch", [brand]);
+}
+
+function e_send(recip, verb, args) {
+  if (e_refState(recip) == "NEAR") {
+    var pair = e_makePromise();
+    setTimeout(function () {
+      try {
+        e_call(pair[1], "resolve", [e_call(recip, verb, args)]);
+      } catch (e) {
+        // XXX deal with nondeterministic errors
+        e_call(pair[1], "smash", e);
+      }
+    }, 0);
+    return pair[0];
+  } else {
+    // If the state is not NEAR, it must be a ref.
+    return recip.e_handleSend(verb, args);
+  }
+}
+
+function e_sendOnly(recip, verb, args) {
+  if (e_refState(recip) == "NEAR") {
+    setTimeout(function () {
+      // environment will take care of logging a failure
+      e_call(recip, verb, args);
+    }, 0);
+  } else {
+    // If the state is not NEAR, it must be a ref.
+    recip.e_handleSendOnly(verb, args);
+  }
+  return e_null;
 }
 
 // --- 2nd level core --- 
@@ -287,14 +327,8 @@ var e_e = {
     // XXX coerce msg
     return e_call(target, msg[0], msg[1])
   },
-  emsg_send_3: function (r, v, a) {
-    // XXX return value
-    setTimeout(function () { e_call(r, v, a) }, 0);
-  },
-  emsg_sendOnly_3: function (r, v, a) {
-    setTimeout(function () { e_call(r, v, a) }, 0);
-    return e_null;
-  },
+  emsg_send_3: e_send,
+  emsg_sendOnly_3: e_sendOnly,
   emsg_toString_1: function (what) { 
     var tb = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", [])
     e_call(tb[0], "print", [what])
@@ -323,9 +357,30 @@ e_Character.prototype.toString = function () {
 }
 // XX character methods
 
+
 function e_Promise(bufferCell) {
   this.resolved = false
   this.bufferCell = bufferCell
+}
+e_Promise.prototype.e_handleSend = function (verb, args) {
+  if (this.resolved) {
+    return e_send(this.resolution, verb, args);
+  } else {
+    var pair = e_makePromise();
+    this.bufferCell.push(e_cajita.freeze([pair[1], verb, args]));
+    return pair[0];
+  }
+}
+e_Promise.prototype.e_handleSendOnly = function (verb, args) {
+  if (this.resolved) {
+    return e_sendOnly(this.resolution, verb, args);
+  } else {
+    this.bufferCell.push(e_cajita.freeze([null, verb, args]));
+    return e_null;
+  }
+}
+e_Promise.prototype.e_refState = function () {
+  return this.resolved ? e_refState(this.resolution) : "EVENTUAL";
 }
 e_Promise.prototype.e_isResolved = function () {
   return this.resolved && e_refIsResolved(this.resolution)
@@ -356,11 +411,21 @@ e_Promise.prototype.toString = function () {
 function e_makePromise() {
   var buffer = []
   var promise = new e_Promise(buffer)
-  var resolver = {
+  var resolver = e_cajita.freeze({
     emsg_resolve_1: function (target) {
-      promise.resolution = target
-      promise.resolved = true
-      promise.bufferCell = null
+      promise.resolution = target;
+      promise.resolved = true;
+      for (var i = 0; i < promise.bufferCell.length; i++) {
+        var record = promise.bufferCell[i];
+        var resolver = record[0];
+        if (resolver == null) {
+          e_sendOnly(target, record[1], record[2]);
+        } else {
+          e_call(record[0], "resolve", [e_send(target, record[1], record[2])]);
+        }
+      }
+      promise.bufferCell = null;
+      return e_null;
     },
     emsg___printOn_1: function (out) { 
       e_call(out, "write", ["<Resolver>"])
@@ -368,7 +433,7 @@ function e_makePromise() {
     emsg_isDone_0: function () {
       return promise.resolved;
     },
-  };
+  });
   return e_cajita.freeze([promise, resolver])
 }
 
@@ -771,7 +836,8 @@ e_slot___equalizer = e_magicLazySlot(function () {
   return e_call(
     e_import("org.erights.e.elib.tables.makeEqualizer"),
     "run",
-    [e_wrapJsFunction(identical)])
+    [e_wrapJsFunction(identical),
+     e_wrapJsFunction(e_refShorten)])
 })
 e_safeEnvNames.push("__equalizer")
 
@@ -938,14 +1004,19 @@ var e_timer = {
   toString: function () { return "<timer>" },
 };
 
+function e_mapSetter(setter) {
+  return function (x) {
+    setter(x);
+    return e_null;
+  };
+}
+
 var e_privilegedEnv = e_makeSafeEnv()
   .emsg_with_2("cajitaPriv", e_cajitaMode ? {
     // XXX this exists because the ___ functions in Cajita are 'unsafe' operations so we can't just use the cajita bridge
-    emsg_setNewModuleHandler_1: function (x) {
-      ___.setNewModuleHandler(x);
-      return e_null;
-    },
+    emsg_setNewModuleHandler_1: e_mapSetter(___.setNewModuleHandler),
     emsg_getNewModuleHandler_0: ___.getNewModuleHandler,
+    emsg_setLogFunc_1: e_mapSetter(___.setLogFunc),
     emsg_get____0: function () { return ___ },
   } : undefined)
   .emsg_with_2("timer", e_timer)
