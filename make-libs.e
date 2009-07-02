@@ -1,4 +1,4 @@
-#!/usr/bin/env rune -cpa lib-host
+#!/usr/bin/env rune -Dfile.encoding=utf-8 -cpa lib-host
 
 # Copyright 2008 Kevin Reid, under the terms of the MIT X license
 # found at http://www.opensource.org/licenses/mit-license.html ................
