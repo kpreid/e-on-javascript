@@ -8,7 +8,8 @@ pragma.enable("accumulator")
 
 def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
-
+def makeStreamResult := <import:javax.xml.transform.stream.makeStreamResult>
+>
 var baseURL := null
 var includeScriptURLs := []
 
@@ -26,21 +27,21 @@ def inputFile := <file>[inputFilename]
 
 def progress := stderr
 
-def conversion := switch (inputFilename) {
+def destination := makeStreamResult(<unsafe:java.lang.makeSystem>.getOut())
+
+switch (inputFilename) {
   match `@_.html` {
     if (includeScriptURLs.size().aboveZero()) {
       throw("--script may not be used with a preexisting HTML document")
     }
-    compileUpdoc.animateHTMLDocument(true, baseURL, [=> progress], inputFile.getTwine())
+    compileUpdoc.animateHTMLDocument(true, baseURL, [=> progress], inputFile.getTwine(), destination)
   }
   match `@name.updoc` {
     compileUpdoc.toHTMLDocument(baseURL, [
       "title" => name,
       => progress,
       => includeScriptURLs,
-    ], makeUpdocParser.parsePlain(inputFile.getTwine()))
+    ], makeUpdocParser.parsePlain(inputFile.getTwine()), destination)
   }
 }
-
 progress.println()
-stdout.print(conversion)

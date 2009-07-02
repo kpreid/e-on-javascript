@@ -1,0 +1,11 @@
+# XXX made in a hurry, not truly reviewed for taming - kpreid 2009-07-02
+
+class(safe, "javax.xml.transform.dom.DOMSource",
+      statics(method("getFEATURE()"),
+              method("run()"),
+              method("run(Node)"),
+              method(suppress, "run(Node, String)")), # XXX review what are the implications of systemID?
+      methods(method("setNode(Node)"),
+              method("getNode()"),
+              method(suppress, "setSystemId(String)"), # XXX review what are the implications of systemID?
+              method("getSystemId()")))  # XXX review what are the implications of systemID?

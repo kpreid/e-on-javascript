@@ -80,13 +80,14 @@ If you also load Cajita, you must load cajita.js before e.js for the bridge to o
 An Updoc file can be converted into a HTML document which runs its code and displays the results inline. Example:
 
   ? def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
+  > def makeStreamResult := <import:javax.xml.transform.stream.makeStreamResult>
   > def makeUpdocParser :=
   >   <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
   
-  ? <file:test/foo.html>.setText(
-  >    compileUpdoc.toHTMLDocument(
-  >      stderr, "../serve",
-  >      makeUpdocParser.parsePlain(<file:foo.updoc>.getTwine())))
+  ? compileUpdoc.toHTMLDocument(
+  >   stderr, "../serve",
+  >   makeUpdocParser.parsePlain(<file:foo.updoc>.getTwine()),
+  >   makeStreamResult(<file:foo.html>))
   
 There is also a multi-file updoc runner; it is used in the standard test suite (make-test.e).
 

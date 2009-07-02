@@ -1,0 +1,16 @@
+# XXX made in a hurry, not truly reviewed for taming - kpreid 2009-07-02
+
+class(safe, "javax.xml.transform.stream.StreamResult",
+      statics(method("getFEATURE()"),
+              method("run()"),
+              method("run(OutputStream)"),
+              method("run(Writer)"),
+              method(suppress, "run(String)"), # XXX Review, does this yield any authority to the specified URL?
+              method("run(File)")),
+      methods(method("setOutputStream(OutputStream)"),
+              method("getOutputStream()"),
+              method("setWriter(Writer)"),
+              method("getWriter()"),
+              method(suppress, "setSystemId(String)"), # XXX Review, does this yield any authority to the specified URL?
+              method("setSystemId(File)"),
+              method("getSystemId()")))

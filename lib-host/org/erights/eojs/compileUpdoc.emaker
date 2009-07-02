@@ -10,13 +10,14 @@ def commonEmakerList := <import:org.erights.eojs.commonEmakerList>
 def staticPrivEnv := <import:org.erights.eojs.makeStaticPrivilegedEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null) # XXX support the user supplying a hash-cache for the animation case
+def makeTextWriter := <elib:oldeio.makeTextWriter>
 
 def Writer := any
 def Term := <import:org.quasiliteral.term.makeTerm>.asType()
 
 def TEXT_NODE := <import:org.w3c.dom.makeNode>.getTEXT_NODE()
 def htmlns := "http://www.w3.org/1999/xhtml"
-def transformer := <import:javax.xml.transform.makeTransformerFactory>.newInstance().newTransformer() # used by htmlToDom
+def identityTransformer := <import:javax.xml.transform.makeTransformerFactory>.newInstance().newTransformer() # used by htmlToDom
   
 def nullWriter {match _ {}}
 def nullResolver {match _ {}}
@@ -38,9 +39,14 @@ def htmlToDom(html :String) {
 
   def result := <import:javax.xml.transform.dom.makeDOMResult>()
 
-  transformer.transform(<import:javax.xml.transform.sax.makeSAXSource>(reader, <import:org.xml.sax.makeInputSource>(<import:java.io.makeStringReader>(html))), result);
+  identityTransformer.transform(<import:javax.xml.transform.sax.makeSAXSource>(reader, <import:org.xml.sax.makeInputSource>(<import:java.io.makeStringReader>(html))), result);
 
   return result.getNode()
+}
+
+def writeDocument(document, result) {
+  identityTransformer.transform(<import:javax.xml.transform.dom.makeDOMSource>(document), result)
+  #return document.saveXML(document.getDocumentElement())
 }
 
 def updocTermToSteps(updoc) {
@@ -243,7 +249,7 @@ def rewriteDom(dir,
 }
 
 def compileUpdoc {
-  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. */
+  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. "result" is a javax.xml.transform.Result to write to. */
   to toHTMLDocument(
     dir :String,
     [=> title :String := "E-on-JavaScript converted Updoc",
@@ -251,7 +257,8 @@ def compileUpdoc {
      => includeScriptURLs := [],
      => progress :Writer := nullWriter
     ] | moreOptions,
-    updoc :Term
+    updoc :Term,
+    result :<type:javax.xml.transform.Result>
   ) {
     def prefix := "updsingleton"
     # The way this works is that we create a DOM document with the updoc text but no scripting, then apply rewriteDom to it.
@@ -302,25 +309,25 @@ ${accum "" for answer in answers { _ + {
     #progress.print(document.saveXML(document.getDocumentElement()))
     rewriteDom(dir, moreOptions | ["prefix" => "updsingleton", => progress], document)
     
-    return document.saveXML(document.getDocumentElement())
+    return writeDocument(document, result)
   }
-  /** As toHTMLDocument/3, but takes HTML source and produces an XHTML document optionally including all the markup of the original, with added Updoc support. */
+  /** As toHTMLDocument/4, but takes HTML source and produces an XHTML document optionally including all the markup of the original, with added Updoc support. */
   to animateHTMLDocument(
     includeOriginal :boolean,
     dir :String,
     options :Map,
-    htmlSource :Twine
+    htmlSource :Twine,
+    result :<type:javax.xml.transform.Result>
   ) {
     if (includeOriginal) {
       def document := htmlToDom(htmlSource)
       #document.getElementsByTagName("html").item(0).setAttribute("xmlns", htmlns)
       rewriteDom(dir, options | ["prefix" => "updsingleton"], document)
       
-      # XXX it would be better to generate HTML so that we can save with the original .html names
-      return document.saveXML(document.getDocumentElement())
+    return writeDocument(document, result)
     } else {
       return compileUpdoc.toHTMLDocument(dir, options, 
-        makeUpdocParser.parseHtml(htmlSource))
+        makeUpdocParser.parseHtml(htmlSource), result)
     }
   }
   

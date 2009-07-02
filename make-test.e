@@ -7,6 +7,7 @@ pragma.syntax("0.9")
 pragma.enable("accumulator")
 
 def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
+def makeStreamResult := <import:javax.xml.transform.stream.makeStreamResult>
 
 def wget := makeCommand("wget")
 
@@ -55,13 +56,12 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
   def convertedFile := convertDir[`$name.xhtml`]
 
   stderr.print(`  $name`)
-  convertedFile.setText(
-    compileUpdoc.animateHTMLDocument(true, "../serve", [
-      "title" => name,
-      "progress" => stderr,
-      "whetherFoundResolver" => def found,
-      "documentHeadingLevel" => 2,
-    ], htmlFile.getTwine()))
+  compileUpdoc.animateHTMLDocument(true, "../serve", [
+    "title" => name,
+    "progress" => stderr,
+    "whetherFoundResolver" => def found,
+    "documentHeadingLevel" => 2,
+  ], htmlFile.getTwine(), makeStreamResult(convertedFile))
   
   if (!found) {
     stderr.print("  no updoc found")
