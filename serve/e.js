@@ -42,7 +42,9 @@ var e_privilegedEnvNames = []
 function e_defaultPrint(obj) {
   var s = "" + obj; // safe toString()
   if (s === "[object Object]") {
-    s = "<{" + e_cajita.ownKeys(obj).toString() + "}>";
+    var keys = e_cajita.ownKeys(obj);
+    keys.sort();
+    s = "<{" + keys + "}>";
   }
   return s;
 }
@@ -442,7 +444,7 @@ e_ConstMap.prototype.emsg_iterate_1 = function (f) {
 e_ConstMap.prototype.emsg_fetch_2 = function (k, f) {
   var index = this.table[k]
   if (index === undefined) {
-    return f()
+    return e_call(f, "run", []);
   } else {
     return this.values[index]
   }
@@ -491,6 +493,14 @@ Array.prototype.emsg___printOn_1 = function (out) {
   }
 }
 
+Array.prototype.emsg_add_1 = function (other) {
+  other = e_refShorten(other);
+  if (other instanceof Array) {
+    return this.concat(other);
+  } else {
+    throw new Error("EoJS XXX Array#add/1 on non-Arrays not implemented");
+  }
+}
 // XXX asKeys and asMap should be sugar
 Array.prototype.emsg_asKeys_0 = function () {
   var nulls = [];

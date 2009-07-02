@@ -7,8 +7,25 @@ var updoc_status = {}
 // List of E-functions (taking prefix as arg) to call with notification of changes of status
 var updoc_notifyStatus = []
 
+function makePrintFunc(unenv) {
+  var printEFunc = {
+    emsg_run_1: function (object) {
+      var writerAndBuffer = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
+      e_call(e_call(writerAndBuffer[0], "withExits", [unenv]), "quote", [object]);
+      return e_call(writerAndBuffer[1], "snapshot", []);
+    },
+    emsg_withExit_2: function (object, name) {
+      return makePrintFunc(e_call(unenv, "with", [object, name]));
+    },
+  };
+  return printEFunc;
+}
+
 function updoc_Driver(prefix) {
   var waitHook = "arbitrary resolved value";
+  
+  // XXX const map should be a CycleBreaker instead
+  var printFunc = makePrintFunc(new e_ConstMap([], []));
   
   var interp = {
     emsg_waitAtTop_1: function (ref) { 
@@ -18,6 +35,8 @@ function updoc_Driver(prefix) {
       }));
       return e_null;
     },
+    emsg_getPrintFunc_0: function () { return printFunc; },
+    emsg_setPrintFunc_1: function (f) { printFunc = f; return e_null; }
   };
   
   var driver = {
@@ -32,7 +51,7 @@ function updoc_Driver(prefix) {
       //alert("wait hook is " + waitHook)
       var runFunc = window[prefix + "_runOuter_" + stepIndex];
       if (runFunc !== undefined) {
-        runFunc();
+        runFunc(driver);
         e_slot_Ref.emsg_get_0().emsg_whenResolved_2(waitHook, e_wrapJsFunction(function () {
           driver.chainStep(stepIndex + 1);
         }));
@@ -41,32 +60,30 @@ function updoc_Driver(prefix) {
         updoc_doNotifyStatus(prefix);
       }
     },
+    "runSyntaxError": function (prefix, errorString, index, expectedAnswers) {
+      updoc_finishStep(prefix, index, [["syntax error", errorString]], expectedAnswers)
+    },
+
+    "runStep": function (prefix, func, index, expectedAnswers) {
+      var stepFrame = document.getElementById(prefix + "-step-" + index)
+      stepFrame.className = "updoc-step updoc-running"
+
+      // 3rd element is not compared but is printed, if defined
+      var answers = []
+      try {
+        var result = func()
+        if (result !== e_null) {
+          answers.push(["value", e_call(printFunc, "run", [result]) + "\n"]);
+        }
+      } catch (exception) {
+        // .stack is defined in Firefox
+        answers.push(["problem", e_call(e_e, "toQuote", [exception]), exception.stack]);
+      }
+
+      updoc_finishStep(prefix, index, answers, expectedAnswers);
+    }
   };
   return driver;
-}
-
-
-function updoc_runSyntaxError(prefix, errorString, index, expectedAnswers) {
-  updoc_finishStep(prefix, index, [["syntax error", errorString]], expectedAnswers)
-}
-
-function updoc_runStep(prefix, func, index, expectedAnswers) {
-  var stepFrame = document.getElementById(prefix + "-step-" + index)
-  stepFrame.className = "updoc-step updoc-running"
-  
-  // 3rd element is not compared but is printed, if defined
-  var answers = []
-  try {
-    var result = func()
-    if (result !== e_null) {
-      answers.push(["value", e_call(e_e, "toQuote", [result]) + "\n"])
-    }
-  } catch (exception) {
-    // .stack is defined in Firefox
-    answers.push(["problem", e_call(e_e, "toQuote", [exception]), exception.stack]);
-  }
-  
-  updoc_finishStep(prefix, index, answers, expectedAnswers)
 }
 
 function updoc_finishStep(prefix, index, answers, expectedAnswers) {

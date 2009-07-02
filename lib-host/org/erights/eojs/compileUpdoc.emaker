@@ -86,8 +86,8 @@ def stepToJS(prefix, i, step, envVar) {
     }
 
     `
-      function ${prefix}_runOuter_$i() {
-        updoc_runStep(${jsQuote(prefix)}, function () {
+      function ${prefix}_runOuter_$i(updoc_updocDriver) {
+        updoc_updocDriver.runStep(${jsQuote(prefix)}, function () {
           var res;
           ${compiler.import(ast.staticScope(), envVar)}
           $js;
@@ -98,8 +98,8 @@ def stepToJS(prefix, i, step, envVar) {
     `
   } catch syntaxError {
     `
-      function ${prefix}_runOuter_$i() {
-        updoc_runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
+      function ${prefix}_runOuter_$i(updoc_updocDriver) {
+        updoc_updocDriver.runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
       }
     `
   }
@@ -299,8 +299,12 @@ def compileUpdoc {
       body.appendChild(def pre := document.createElementNS(htmlns, "pre"))
       pre.appendChild(document.createTextNode(`? ${source.replaceAll("\n", "\n> ")}
 ${accum "" for answer in answers { _ + {
-          def term`@{label :String}: @{text :String}` := answer
-          `# $label: $text$\n`
+          def term`@{label :String}: @{var text :String}` := answer
+
+          require(text.endsWith("\n"))
+          text run= (0, text.size() - 1)
+
+          `# $label: ${text.replaceAll("\n", `$\n# ${" " * label.size()}  `)}$\n`
         }}}`))
     }
     

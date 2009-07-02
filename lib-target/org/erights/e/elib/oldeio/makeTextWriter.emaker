@@ -3,6 +3,73 @@
 
 # This is new code to E-on-JS.
 
+def jsTools := <import:org.erights.eojs.jsTools>
+
+/** This is a workaround for not having real ConstMaps and TraversalKeys. */
+def makeObjectMapKludge(assocs) {
+  return def objectMapKludge {
+    to fetch(key, fail) {
+      for a in assocs {
+        if (__equalizer.sameYet(a[0], key)) {
+          return a[1]
+        }
+      }
+      return fail()
+    }
+    to with(key, value) {
+      return makeObjectMapKludge(assocs.with([key, value]))
+    }
+  }
+}
+
+def _makeTextWriter(strings, exitMap) {
+  def textWriter {
+    to write(text :String) {
+      strings.push(text)
+    }
+    to quote(x) {
+      textWriter.print(x)
+    }
+    to print(x) {
+      escape notFound {
+        def name := exitMap.fetch(x, notFound)
+        textWriter.write(name)
+        return
+      }
+      def state := Ref.state(x)
+      if (state == "NEAR") {
+        x.__printOn(textWriter)
+      } else if (state == "BROKEN") {
+        textWriter.write("<")
+        if (x == jsTools.undefined()) {
+          textWriter.write("JS undefined")
+        } else if (x == jsTools.null()) {
+          textWriter.write("JS null")
+        } else {
+          textWriter.write("ref broken by ")
+          textWriter.print(Ref.optProblem(x))
+        }
+        textWriter.write(">")
+      } else { # state == "EVENTUAL"
+        if (Ref.isResolved(x)) {
+          textWriter.write("<Far ref>")
+        } else {
+          textWriter.write("<Promise>")
+        }
+      }
+    }
+     # XXX Should changing the exit map not be part of the writer interface at all, but rather be on the buffer/read end?
+    to withExits(addedExits) {
+      var m := exitMap
+      for k => v in addedExits {
+        m with= (k, v)
+      }
+      return _makeTextWriter(strings, m)
+    }
+  }
+  return textWriter
+}
+
 def makeTextWriter {
   to makeBufferingPair() {
     def strings := [].diverge()
@@ -11,30 +78,8 @@ def makeTextWriter {
         return "".rjoin(strings.snapshot())
       }
     }
-    def textWriter {
-      to write(text :String) {
-        strings.push(text)
-      }
-      to quote(x) {
-        textWriter.print(x)
-      }
-      to print(x) {
-        def state := Ref.state(x)
-        if (state == "NEAR") {
-          x.__printOn(textWriter)
-        } else if (state == "BROKEN") {
-          textWriter.write("<ref broken by ")
-          textWriter.print(Ref.optProblem(x))
-          textWriter.write(">")
-        } else { # state == "EVENTUAL"
-          if (Ref.isResolved(x)) {
-            textWriter.write("<Far ref>")
-          } else {
-            textWriter.write("<Promise>")
-          }
-        }
-      }
-    }
-    return [textWriter, buffer]
+    
+    # XXX Exit map should be initialized as a CycleBreaker instead once we have it.
+    return [_makeTextWriter(strings, makeObjectMapKludge([])), buffer]
   }
 }

@@ -1,7 +1,7 @@
 # Copyright 2005-2008 Kevin Reid, under the terms of the MIT X license
 # found at http://www.opensource.org/licenses/mit-license.html ................
 
-# XXX copied from EoJ just to remove EoCL-only syntax features, and stub out FlexMap. NOTHING TO SEE HERE, REPLACE IT AS NEEDED
+# XXX copied from EoJ just to remove EoCL-only syntax features, and stub out FlexMap. However it also contains such things as an implementation of 'with' now.
 
 pragma.syntax("0.9")
 
@@ -51,6 +51,16 @@ bind mapSugar extends sugarRoot implements ExitViaHere {
     for key in self.getKeys() {
       assocFunc(key, self[key])
     }
+  }
+  
+  to instance_with(self, key, value) {
+    # NOTE: Inefficient
+    return __makeMap.fromIteratable(def mapOrIterator {
+      to iterate(f) {
+        self.iterate(f)
+        f(key, value)
+      }
+    }, false, null)
   }
   
   to instance_or(front, behind) {
