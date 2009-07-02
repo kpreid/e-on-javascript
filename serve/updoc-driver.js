@@ -39,16 +39,29 @@ function updoc_Driver(prefix) {
     emsg_setPrintFunc_1: function (f) { printFunc = f; return e_null; }
   };
   
+  var stdoutWB = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
+  var stderrWB = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
+  
+  function captureOutput(answers, name, buffer) {
+    var text = e_call(buffer, "snapshot", []);
+    if (text !== "") {
+      answers.push([name, text]);
+    }
+    e_call(buffer, "_clear", []); // XXX ad hoc invented on the spot
+  }
+  
   var driver = {
     "augmentEnv": function (env) {
-      return e_call(env, "with", ["interp", interp]);
+      env = e_call(env, "with", ["interp", interp]);
+      env = e_call(env, "with", ["stdout", stdoutWB[0]]);
+      env = e_call(env, "with", ["stderr", stderrWB[0]]);
+      return env;
     },
     "run": function () {
       updoc_status[prefix] = {done: false, success: 0, failure: 0};
       setTimeout(function () { driver.chainStep(0) }, 1);
     },
     "chainStep": function (stepIndex) {
-      //alert("wait hook is " + waitHook)
       var runFunc = window[prefix + "_runOuter_" + stepIndex];
       if (runFunc !== undefined) {
         runFunc(driver);
@@ -72,15 +85,24 @@ function updoc_Driver(prefix) {
       var answers = []
       try {
         var result = func()
+        captureOutput(answers, "stdout", stdoutWB[1]);
+        captureOutput(answers, "stderr", stderrWB[1]);
         if (result !== e_null) {
-          answers.push(["value", e_call(printFunc, "run", [result]) + "\n"]);
+          answers.push(["value", e_call(printFunc, "run", [result])]);
         }
       } catch (exception) {
+        captureOutput(answers, "stdout", stdoutWB[1]);
+        captureOutput(answers, "stderr", stderrWB[1]);
         // .stack is defined in Firefox
         answers.push(["problem", e_call(e_e, "toQuote", [exception]), exception.stack]);
       }
+      
+      // XXX this is actually supposed (per eocl) to happen after waitAtTop has resolved, the idea being to capture output caused by sends which this turn waits on.
+      captureOutput(answers, "stdout", stdoutWB[1]);
+      captureOutput(answers, "stderr", stderrWB[1]);
 
       updoc_finishStep(prefix, index, answers, expectedAnswers);
+      //console.log("finished step" + index);
     }
   };
   return driver;
@@ -93,15 +115,16 @@ function updoc_finishStep(prefix, index, answers, expectedAnswers) {
   var match = expectedAnswers.length == answers.length
   for (var j = 0; j < answers.length; j++) {
     var a = answers[j]
-    stepOutput.appendChild(document.createTextNode('# ' + a[0] + ': ' + a[1]))
+    var exp = expectedAnswers[j]
+    stepOutput.appendChild(document.createTextNode('# ' + a[0] + ': ' + a[1] + '\n\n'))
     if (a[2] !== undefined) {
-      stepOutput.appendChild(document.createTextNode('\n\n' + a[2]))
+      stepOutput.appendChild(document.createTextNode(a[2] + '\n\n'))
     }
     
-    if (match && (   a[0] != expectedAnswers[j][0]
-                  || a[1] != expectedAnswers[j][1])) {
-      //document.getElementById("output-" + index).appendChild(document.createTextNode("fail at " + j + "-" + (answers[j][0] != expectedAnswers[j][0]) + "-" + (answers[j][1] != expectedAnswers[j][1])))
-      match = false
+    if (match && (   a[0] != exp[0]
+                  || a[1] != exp[1])) {
+      //stepOutput.appendChild(document.createTextNode("fail at " + j + "-" + (a[0] != exp[0]) + "-" + (a[1] != exp[1]) + " lenGot=" + a[1].length + "=<<" + a[1] + ">> lenExp=" + exp[1].length + "=<<" + exp[1] + ">>"));
+      match = false;
     }
   }
 

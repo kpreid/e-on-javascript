@@ -859,6 +859,10 @@ e_FlexList.prototype.emsg_snapshot_0 = function () {
 e_FlexList.prototype.emsg_push_1 = function (v) { 
   this.array.push(e_call(this.guard, "coerce", [v, e_throw]))
 }
+e_FlexList.prototype.emsg_setSize_1 = function (size) {
+  this.array.length = size;
+  // XXX proper behavior, tests
+};
 e_FlexList.prototype.emsg = e_sugarHandler
 
 var e_makeFlexList = {

@@ -85,6 +85,9 @@ def makeTextWriter {
       to snapshot() {
         return "".rjoin(strings.snapshot())
       }
+      to _clear() { # XXX invented for updoc's needs
+        strings.setSize(0)
+      }
     }
     
     # XXX Exit map should be initialized as a CycleBreaker instead once we have it.
