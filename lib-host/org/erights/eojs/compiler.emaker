@@ -84,8 +84,9 @@ def jsKit {
   }
   to literal(v) {
     return switch (v) {
-      match s :String { 
-        def quoted := `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`
+      match s :String {
+        # XXX probably a good idea to quote all of Unicode, or at least other control characters
+        def quoted := `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'").replaceAll("\n", "\\n")}'`
         # for compatibility with JS-in-HTML
         makeSV(EXPR, if (quoted.indexOf("</") != -1) {
           `(${quoted.replaceAll("</", "<'+'/")})`
