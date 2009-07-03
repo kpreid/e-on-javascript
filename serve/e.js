@@ -795,6 +795,7 @@ e_addImportToSafe("__booleanFlow"  , "org.erights.e.elang.expand.booleanFlow") /
 e_addImportToSafe("__comparer"     , "org.erights.e.elang.expand.comparer")
 e_addImportToSafe("__makeOrderedSpace", "org.erights.e.elang.coord.makeOrderedSpace")
 e_addImportToSafe("__makeVerbFacet", "org.erights.e.elang.expand.__makeVerbFacet")
+e_addImportToSafe("__matchBind"    , "org.erights.e.elang.expand.__matchBind"); // XXX EoJ's expander only
 e_addImportToSafe("__mapEmpty"     , "org.erights.e.elang.expand.viaEmptyMap")
 e_addImportToSafe("__mapExtract"   , "org.erights.e.elang.expand.makeViaExtractor")
 e_addImportToSafe("__is"           , "org.erights.e.elang.expand.__is") // XXX EoJ's expander only
@@ -865,6 +866,14 @@ e_safeEnvNames.push("traceln")
 function e_Env(table) {
   this.table = table
 }
+e_Env.prototype.emsg_get_1 = function (noun) {
+  if (noun in this.table) {
+    return e_call(this.table[noun], "get", []);
+  } else {
+    // XXX wording for updoc compatibility, probably not the best
+    throw new Error("undefined E variable: " + noun);
+  }
+};
 e_Env.prototype.emsg_getSlot_1 = function (noun) {
   if (noun in this.table) {
     return this.table[noun]

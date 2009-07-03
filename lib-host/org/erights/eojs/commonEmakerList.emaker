@@ -19,6 +19,7 @@
   "org.erights.e.elang.expand.viaEmptyMap",
   "org.erights.e.elang.expand.__bind",
   "org.erights.e.elang.expand.__makeVerbFacet",
+  "org.erights.e.elang.expand.__matchBind",
   "org.erights.e.elang.expand.__splitList",
   "org.erights.e.elang.expand.__switchFailed",
   "org.erights.e.elang.interp.help",
