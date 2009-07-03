@@ -66,7 +66,15 @@ def _makeTextWriter(strings, exitMap) {
       textWriter.print(x)
       textWriter.write("\n")
     }
-     # XXX Should changing the exit map not be part of the writer interface at all, but rather be on the buffer/read end?
+    to println() {
+      textWriter.write("\n")
+    }
+    to printAll(xs) {
+      for x in xs {
+        textWriter.print(x)
+      }
+    }
+    # XXX Should changing the exit map not be part of the writer interface at all, but rather be on the buffer/read end?
     to withExits(addedExits) {
       var m := exitMap
       for k => v in addedExits {

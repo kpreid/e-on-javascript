@@ -27,7 +27,7 @@ function updoc_Driver(prefix) {
   // XXX const map should be a CycleBreaker instead
   var printFunc = makePrintFunc(new e_ConstMap([], []));
   
-  var interp = {
+  var interp = e_cajita.freeze({
     emsg_waitAtTop_1: function (ref) { 
       var oldWait = waitHook;
       waitHook = e_slot_Ref.emsg_get_0().emsg_whenResolved_2(ref, e_wrapJsFunction(function () {
@@ -37,11 +37,25 @@ function updoc_Driver(prefix) {
     },
     emsg_getPrintFunc_0: function () { return printFunc; },
     emsg_setPrintFunc_1: function (f) { printFunc = f; return e_null; }
-  };
+  });
   
   var stdoutWB = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
   var stderrWB = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
   
+  function makePrintOrPrintln(writer, ln) {
+    return e_cajita.freeze({
+      emsg: function (verb, args) { 
+        if (verb === "run") {
+          e_call(stdoutWB[0], "printAll", [args]);
+          if (ln) e_call(stdoutWB[0], "println", []);
+          return e_null;
+        } else {
+          return e_noSuchMethod(this, verb, args)
+        }
+      },
+    });
+  }
+
   function captureOutput(answers, name, buffer) {
     var text = e_call(buffer, "snapshot", []);
     if (text !== "") {
@@ -52,9 +66,12 @@ function updoc_Driver(prefix) {
   
   var driver = {
     "augmentEnv": function (env) {
+      var makeVerbFacet = env.emsg_get_1("__makeVerbFacet");
       env = e_call(env, "with", ["interp", interp]);
       env = e_call(env, "with", ["stdout", stdoutWB[0]]);
       env = e_call(env, "with", ["stderr", stderrWB[0]]);
+      env = e_call(env, "with", ["print", makePrintOrPrintln(false)]);
+      env = e_call(env, "with", ["println", makePrintOrPrintln(true)]);
       return env;
     },
     "run": function () {
