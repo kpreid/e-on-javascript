@@ -3,18 +3,30 @@
 
 This is E-on-JavaScript.
 
-It is entirely written in E and JavaScript, and it compiles E code into JavaScript which should run in a typical web browser. It can interoperate with Caja.
+It is an E <http://www.erights.org/> implementation entirely written in E and JavaScript, and it compiles E code into JavaScript which should run in a typical web browser. It can interoperate with Caja.
 
 It is rather sketchy: various parts are sufficient only to run the test cases I've tried so far, and there are various places where escaping or quoting or guarding is not quite right -- that is, don't try to run untrusted code in it yet!
+
+--- Caution about E semantics
+
+When in Caja-interop mode, several guarantees made by E semantics fail. In particular, unprivileged Cajita code and any other JavaScript code may:
+
+  - break sameness, including distinguishing between a resolved promise and its referent and between Selfless objects.
+
+  - observe what *methods* an E-on-JavaScript object has, even if it overrides __getAllegedType.
+
+While sameness is probably impossible to solve, methods visibility could be fixed, for example by putting E-behavior into a closure. I welcome experiments to see how practical this and other solutions are.
 
 --- Setting up
 
 0. You will need:
   - An installation of E-on-Java
   - The lib/ directory from E-on-CL (because it has some useful emakers where E-on-Java has only Java code.)
-  - tagsoup.jar (from <http://home.ccil.org/~cowan/XML/tagsoup/>).
+  - TagSoup (from <http://home.ccil.org/~cowan/XML/tagsoup/>).
 
-1. Symlink or copy E-on-CL's lib/ to lib-target-eocl/ in the E-on-JS directory.
+1. Within the E-on-JavaScript directory:
+  - Symlink or copy E-on-CL's lib/ to ./lib-target-eocl
+  - Symlink or copy the TagSoup jar to ./tagsoup.jar
 
 2. Run make-libs.e. (There will be a lot of errors due to E code not quite fully supported; don't worry about them.)
 
@@ -24,9 +36,29 @@ Run make-test.e (which will download and compile the E specification test suite 
 
 --- Writing an application
 
-The only specialized objects provided as yet are alert(), in the privileged env, and jsTools, <import:org.erights.eojs.jsTools>, which right now just lets you generate JavaScript functions.
-
 Interaction with the containing web page must be bootstrapped by JavaScript code; see demo/index.html for an example (using Caja DOM taming).
+
+Platform-specific safe objects by FQN:
+  - org.erights.eojs.jsTools
+      undefined(): return the JS undefined value
+      null(): return the JS null value
+      asFunction(func): convert an E function into a JavaScript function
+      asObject(map): convert an E map into a JavaScript object
+  - org.erights.eojs.cajita
+      The "cajita" object from Caja.
+  - org.erights.eojs.cajitaEnv
+      The "sharedImports" object from Caja.
+
+Platform-specific privileged env objects:
+  - EoJS
+      asyncLoad(url): Arrange for the JavaScript code at the given URL to be loaded as by <script>.
+  - cajitaPriv
+      Contains an arbitrary subset of the privileged operations exposed on the Caja "___" object.
+      setNewModuleHandler/1
+      getNewModuleHandler/0
+      get____/0  (returns the ___ object, which cannot be used normally as it is untamed as far as Cajita knows, but is necessary for working with modules)
+  - alert
+      The browser-JavaScript alert function.
 
 --- Serving an application
 
@@ -99,8 +131,7 @@ Any Cajita object given to E code has the verbs get/1 and put/2, accessing prope
 
 A verb beginning with ".", or not on the above list of special verbs, specifies a JS method call. That is, E 'obj.foo()' is equivalent to Cajita 'obj.foo()' and E 'obj.".get"()' is equivalent to Cajita 'obj.get()'.
 
-<import:org.erights.eojs.cajita> returns the 'cajita' object.
-<import:org.erights.eojs.cajitaEnv> returns the '___.sharedImports' object.
+<import:org.erights.eojs.cajita> returns the 'cajita' object. <import:org.erights.eojs.cajitaEnv> returns the '___.sharedImports' object. See "Writing an application" above for other platform-specific information.
 
 XXX complete this list with other Cajita related behavior
 
