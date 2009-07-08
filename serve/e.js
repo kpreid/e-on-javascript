@@ -227,7 +227,7 @@ e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (typeof(specimen) === this.typeStr) {
     return specimen
   } else { // XXX miranda coerce
-    throw new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr)
+    e_throw.emsg_eject_2(ejector, "E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr);
   }
 }
 
@@ -239,7 +239,7 @@ e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (specimen instanceof this.constr) {
     return specimen
   } else { // XXX miranda coerce
-    throw new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0])) // kluge
+    e_throw.emsg_eject_2(ejector, "E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0])) // kluge
   }
 }
 
@@ -969,10 +969,10 @@ var e_jsTools = {
   },
   // convert an E function object into a JavaScript function
   emsg_asFunction_1: function (eFunc) {
-    var f = function () {
-      return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0))
-    }
-    return e_cajitaMode ? ___.func(f) : f;
+    function f() {
+      return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0));
+    };
+    return e_cajitaMode ? ___.frozenFunc(f, e_e.emsg_toQuote_1(eFunc)) : f;
   },
   // convert an E map object into a JavaScript object. XXX this is probably Cajita-unsafe -- use appropriate Cajita runtime operations.
   emsg_asObject_1: function (map) {
@@ -1029,6 +1029,7 @@ var e_privilegedEnv = e_makeSafeEnv()
     emsg_get____0: function () { return ___ },
   } : undefined)
   .emsg_with_2("timer", e_timer)
-  .emsg_with_2("alert", e_wrapJsFunction(alert))
-  .emsg_with_2("EoJS", e_EoJS);
+  .emsg_with_2("alert", e_wrapJsFunction(function (x) { alert(x); }))
+  .emsg_with_2("EoJS", e_EoJS)
+  .emsg_with_2("window", window);
   

@@ -59,6 +59,8 @@ Platform-specific privileged env objects:
       get____/0  (returns the ___ object, which cannot be used normally as it is untamed as far as Cajita knows, but is necessary for working with modules)
   - alert
       The browser-JavaScript alert function.
+  - window
+      The browser-JavaScript window object (aka the global object). XXX this should be replaced with extracting the global object whether in a browser or not.
 
 --- Serving an application
 
