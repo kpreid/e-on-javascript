@@ -127,6 +127,7 @@ function updoc_Driver(prefix) {
 
 function updoc_finishStep(prefix, index, answers, expectedAnswers) {
   var stepFrame = document.getElementById(prefix + "-step-" + index)
+  var stepProgress = document.getElementById(prefix + "-progress-" + index)
   var stepOutput = document.getElementById(prefix + "-output-" + index)
   
   var match = expectedAnswers.length == answers.length
@@ -146,6 +147,7 @@ function updoc_finishStep(prefix, index, answers, expectedAnswers) {
   }
 
   stepFrame.className = match ? "updoc-step updoc-matched" : "updoc-step updoc-mismatch"
+  stepProgress.className = match ? "updoc-progress updoc-matched" : "updoc-progress updoc-mismatch"
   
   var statusRecord = updoc_status[prefix];
   

@@ -168,6 +168,10 @@ def rewriteDom(dir,
     e.setAttribute("href", `$dir/updoc.css`)
   }
   
+  def updocProgressBar := document.createElementNS(htmlns, "p")
+  body.insertBefore(updocProgressBar, body.getFirstChild()) # XXX insert before the h1 if there is one
+  updocProgressBar.setAttribute("class", "updoc-progress-bar")
+  
   var stepCounter := -1
   
   def pres := document.getElementsByTagName("pre")
@@ -228,12 +232,18 @@ def rewriteDom(dir,
         stepDiv.appendChild(def gotPre := document.createElementNS(htmlns, "pre"))
         gotPre.setAttribute("class", "updoc-output-got")
         gotPre.setAttribute("id", `$prefix-output-$i`)
+        
+        # progress bar element
+        updocProgressBar.appendChild(def pbElem := document.createElementNS(htmlns, "a"))
+        pbElem.setAttribute("class", "updoc-progress updoc-pending")
+        pbElem.setAttribute("id", `$prefix-progress-$i`)
+        pbElem.setAttribute("href", `#$prefix-step-$i`)
+        pbElem.appendChild(document.createTextNode(`$i`))
       }
     }
   }
 
   {
-    def body := document.getElementsByTagName("body").item(0)
     body.appendChild(def e := document.createElementNS(htmlns, "script"))
     
     e.appendChild(document.createTextNode(`

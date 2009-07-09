@@ -15,15 +15,31 @@
   margin-bottom: 0;
 }
 
+.updoc-progress-bar {
+  display: table;
+  width: 90%;
+  margin: .5em auto;
+  border: 4px ridge white;
+}
+.updoc-progress {
+  display: table-cell;
+  text-align: center;
+}
+
 /* --- not-yet-run --- */
 
 .updoc-step.updoc-pending {
   border-left: dotted black;
 }
 
+.updoc-progress.updoc-pending {
+  background: white;
+  color: black;
+}
+
 /* --- running --- */
 
-.updoc-step.updoc-running {
+.updoc-step.updoc-running, .updoc-progress.updoc-running {
   color: black;
   background: #EEE;
 }
@@ -37,6 +53,11 @@
 .updoc-step.updoc-matched .updoc-output-got { color: black; }
 .updoc-step.updoc-matched .updoc-output-exp { display: none; }
 
+.updoc-progress.updoc-matched {
+  background: #AFA;
+  color: gray;
+}
+
 /* --- failure --- */
 
 .updoc-step.updoc-mismatch {
@@ -45,6 +66,11 @@
 }
 .updoc-step.updoc-mismatch .updoc-output-got { color: red; }
 .updoc-step.updoc-mismatch .updoc-output-exp { color: green; }
+
+.updoc-progress.updoc-mismatch {
+  background: red;
+  color: white;
+}
 
 /* --- multi-test driver page styles --- */
 
