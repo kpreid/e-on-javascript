@@ -561,7 +561,7 @@ Array.prototype.emsg___printOn_1 = function (out) {
 Array.prototype.emsg_add_1 = function (other) {
   other = e_refShorten(other);
   if (other instanceof Array) {
-    return this.concat(other);
+    return e_cajita.freeze(this.concat(other));
   } else {
     throw new Error("EoJS XXX Array#add/1 on non-Arrays not implemented");
   }
@@ -820,6 +820,11 @@ e_safeEnvNames.push("boolean")
 e_maker_org_$cubik_$cle_$prim_$float64 = function () { return e_number_guard } // XXX wrong fqn
 e_maker_org_$cubik_$cle_$prim_$int = function () { return e_int_guard } // XXX wrong fqn
 
+e_slot_TextWriter = e_cajita.freeze({emsg_get_0: function () {
+  return e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "asType", []);
+}})
+e_safeEnvNames.push("TextWriter")
+
 /**
  * Are x and y not observably distinguishable? Copied 2008-12-31 from
  * http://code.google.com/p/google-caja/issues/detail?id=934
@@ -972,6 +977,7 @@ var e_jsTools = {
     function f() {
       return e_call(eFunc, "run", Array.prototype.slice.call(arguments, 0));
     };
+    f.toString = function () { return "[E function " + e_e.emsg_toQuote_1(eFunc) + "]"; };
     return e_cajitaMode ? ___.frozenFunc(f, e_e.emsg_toQuote_1(eFunc)) : f;
   },
   // convert an E map object into a JavaScript object. XXX this is probably Cajita-unsafe -- use appropriate Cajita runtime operations.
