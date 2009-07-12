@@ -93,7 +93,7 @@ def stepToJS(prefix, i, step, envVar) {
 
     `
       function ${prefix}_runOuter_$i(updoc_updocDriver) {
-        updoc_updocDriver.runStep(${jsQuote(prefix)}, function () {
+        return updoc_updocDriver.runStep(${jsQuote(prefix)}, function () {
           var res;
           ${compiler.import(ast.staticScope(), envVar)}
           $js;
@@ -105,7 +105,7 @@ def stepToJS(prefix, i, step, envVar) {
   } catch syntaxError {
     `
       function ${prefix}_runOuter_$i(updoc_updocDriver) {
-        updoc_updocDriver.runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
+        return updoc_updocDriver.runSyntaxError(${jsQuote(prefix)}, ${jsQuote(E.toString(syntaxError))}, $i, ${prefix}_expected_$i)
       }
     `
   }

@@ -81,8 +81,9 @@ function updoc_Driver(prefix) {
     "chainStep": function (stepIndex) {
       var runFunc = window[prefix + "_runOuter_" + stepIndex];
       if (runFunc !== undefined) {
-        runFunc(driver);
+        var callback = runFunc(driver);
         e_slot_Ref.emsg_get_0().emsg_whenResolved_2(waitHook, e_wrapJsFunction(function () {
+          callback();
           driver.chainStep(stepIndex + 1);
         }));
       } else {
@@ -91,15 +92,17 @@ function updoc_Driver(prefix) {
       }
     },
     "runSyntaxError": function (prefix, errorString, index, expectedAnswers) {
-      updoc_finishStep(prefix, index, [["syntax error", errorString]], expectedAnswers)
+      updoc_finishStep(prefix, index, [["syntax error", errorString]], expectedAnswers);
+      return function () {};
     },
 
     "runStep": function (prefix, func, index, expectedAnswers) {
-      var stepFrame = document.getElementById(prefix + "-step-" + index)
-      stepFrame.className = "updoc-step updoc-running"
+      //console.log(prefix + ": updoc step " + index + " / started");
+      var stepFrame = document.getElementById(prefix + "-step-" + index);
+      stepFrame.className = "updoc-step updoc-running";
 
       // 3rd element is not compared but is printed, if defined
-      var answers = []
+      var answers = [];
       try {
         var result = func()
         captureOutput(answers, "stdout", stdoutWB[1]);
@@ -114,18 +117,19 @@ function updoc_Driver(prefix) {
         answers.push(["problem", e_call(e_e, "toQuote", [exception]), exception.stack]);
       }
       
-      // XXX this is actually supposed (per eocl) to happen after waitAtTop has resolved, the idea being to capture output caused by sends which this turn waits on.
-      captureOutput(answers, "stdout", stdoutWB[1]);
-      captureOutput(answers, "stderr", stderrWB[1]);
+      return function () {
+        captureOutput(answers, "stdout", stdoutWB[1]);
+        captureOutput(answers, "stderr", stderrWB[1]);
 
-      updoc_finishStep(prefix, index, answers, expectedAnswers);
-      //console.log("finished step" + index);
+        updoc_finishStep(prefix, index, answers, expectedAnswers);
+      };
     }
   };
   return driver;
 }
 
 function updoc_finishStep(prefix, index, answers, expectedAnswers) {
+  //console.log(prefix + ": updoc step " + index + " \\ finished");
   var stepFrame = document.getElementById(prefix + "-step-" + index)
   var stepProgress = document.getElementById(prefix + "-progress-" + index)
   var stepOutput = document.getElementById(prefix + "-output-" + index)
