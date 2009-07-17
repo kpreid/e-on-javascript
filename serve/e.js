@@ -61,42 +61,53 @@ function e_noSuchMethod(r, v, a) {
 // called whenever an E-called object doesn't have an appropriately named JS method
 function e_NoJsMethod(r, verb, args) {
   if (r.emsg !== undefined) { // will throw if r is undefined or null, this is fine as they are considered broken refs
-    // If r has an emsg method, 
-    return r.emsg(verb, e_cajita.freeze(args))
-  } else if (verb === "__printOn" && args.length === 1) {
+    // If r has an emsg method, it's plumbing or ...
+    return r.emsg(verb, e_cajita.freeze(args));
+  } else {
+    // Handle Miranda methods
+    return e_doMiranda(r, verb, args, function (self, verb, args, matcherFail) {
+      // Handle JavaScript bridge
+      if (!e_cajitaMode) {
+        return matcherFail(r, verb, args);
+      } else if (verb === "get" && args.length === 1) { // Cajita
+        var propName = e_string_guard.emsg_coerce_2(args[0], e_throw);
+        return cajita.readPub(r, propName);
+      } else if (verb === "put" && args.length === 2) { // Cajita
+        var propName = e_string_guard.emsg_coerce_2(args[0], e_throw);
+        cajita.setPub(r, propName, args[1]);
+        return e_null;
+      } else if (verb === "run") { // Cajita
+        // XXX when we have Refs, we will need to shorten the args (deeply) to hide sameness non-differences
+        return cajita.callPub(r, "apply", [cajita.USELESS, args]);
+      } else {
+        if (verb[0] === ".") { // dot escapes special verbs, has no other meaning
+          verb = verb.slice(1);
+        }
+        var method = cajita.readPub(r, verb);
+        if (method === undefined) {
+          return matcherFail(r, verb, args);
+        } else {
+          return cajita.callPub(method, "apply", [r, args]);
+        }
+      }
+    })
+  }
+}
+
+// Implement Miranda methods. matcherFunc should take (self, verb, args, matcherFail) and call matcherFail(self, verb, args) if it does not match.
+function e_doMiranda(self, verb, args, matcherFunc) {
+  if (verb === "__printOn" && args.length === 1) {
     // Miranda method. XXX provide Miranda separately for emsg implementations
     var out = args[0];
-    e_call(out, "write", [e_defaultPrint(r)]);
+    e_call(out, "write", [e_defaultPrint(self)]);
     return e_null;
   } else if (verb === "__whenMoreResolved" && args.length === 1) {
     // Miranda method. XXX provide Miranda separately for emsg implementations
     var reactor = args[0];
-    e_send(reactor, "run", [r]);
+    e_send(reactor, "run", [self]);
     return e_null;
   } else {
-    if (!e_cajitaMode) {
-      return e_noSuchMethod(r, verb, args)
-    } else if (verb === "get" && args.length === 1) { // Cajita
-      var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
-      return cajita.readPub(r, propName)
-    } else if (verb === "put" && args.length === 2) { // Cajita
-      var propName = e_string_guard.emsg_coerce_2(args[0], e_throw)
-      cajita.setPub(r, propName, args[1])
-      return e_null
-    } else if (verb === "run") { // Cajita
-      // XXX when we have Refs, we will need to shorten the args (deeply) to hide sameness non-differences
-      return cajita.callPub(r, "apply", [cajita.USELESS, args])
-    } else {
-      if (verb[0] === ".") { // dot escapes special verbs, has no other meaning
-        verb = verb.slice(1)
-      }
-      var method = cajita.readPub(r, verb)
-      if (method === undefined) {
-        return e_noSuchMethod(r, verb, args)
-      } else {
-        return cajita.callPub(method, "apply", [r, args])
-      }
-    }
+    return matcherFunc(self, verb, args, e_noSuchMethod);
   }
 }
 
@@ -288,13 +299,15 @@ function e_sugarHandler(verb, args) {
   return e_sugarCall(e_fqnTable[this.constructor] + "Sugar", this, verb, args)
 }
 function e_sugarCall(fqn, self, verb, args) {
-  // XXX when import caching works, drop this
-  if (e_sugarCache[fqn] === undefined) {
-    e_sugarCache[fqn] = e_import(fqn)
-  }
-  var sugarArgs = args.slice()
-  sugarArgs.unshift(self) // XXX better technique?
-  return e_call(e_sugarCache[fqn], "instance_" + verb, sugarArgs)
+  return e_doMiranda(self, verb, args, function (self, verb, args, matcherFail) {
+    // XXX when import caching works, drop this
+    if (e_sugarCache[fqn] === undefined) {
+      e_sugarCache[fqn] = e_import(fqn);
+    }
+    var sugarArgs = args.slice();
+    sugarArgs.unshift(self); // XXX better technique?
+    return e_call(e_sugarCache[fqn], "instance_" + verb, sugarArgs);
+  });
 }
 
 function e_slotVarName(noun) {
@@ -305,17 +318,21 @@ function e_slotVarName(noun) {
 
 function e_wrapJsFunction(jsFunction) {
   if (!e_cajitaMode) {
-    return {
+    var functionObject = {
+      emsg___printOn_1: function (out) {
+        e_call(out, "write", ["<JS function>"]); // XXX should regexp out function name
+      },
       emsg: function (verb, args) {
         if (verb === "run") {
           // XXX when we have Refs, we will need to shorten these args (deeply) to hide sameness non-differences
-          return jsFunction.apply({}, args)
+          return jsFunction.apply({}, args);
         } else {
-          e_noSuchMethod(this, verb, args) // XXX miranda?
+          e_doMiranda(functionObject, verb, args, e_noSuchMethod);
         }
       },
-      toString: function () { return jsFunction.toString() + " as E function" },
-    }
+      toString: function () { return jsFunction.toString() + " as E function"; },
+    };
+    return functionObject;
   } else {
     return ___.func(jsFunction)
   }
@@ -702,11 +719,14 @@ e_safeEnvNames.push("NaN")
 e_safeEnvNames.push("Infinity")
 e_safeEnvNames.push("any")
 var e_slot___makeList = e_makeFinalSlot({
+  emsg___printOn_1: function (out) {
+    e_call(out, "write", ["__makeList"]); // XXX apply the exit principle
+  },
   emsg: function (verb, args) { 
     if (verb === "run") {
-      return e_cajita.freeze(args)
+      return e_cajita.freeze(args);
     } else {
-      return e_noSuchMethod(this, verb, args)
+      e_doMiranda(functionObject, verb, args, e_noSuchMethod);
     }
   },
 })
@@ -731,6 +751,7 @@ function e_import(what) {
   // XXX inadequate escaping
   var compiledFn = window["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
   if (compiledFn === undefined) {
+      try { console.trace() } catch (e) {} // Debugging
       throw new Error("Import not found: " + what)
   } else {
     return compiledFn()

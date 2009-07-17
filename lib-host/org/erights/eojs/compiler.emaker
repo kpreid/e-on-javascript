@@ -472,6 +472,7 @@ def compile(expr, out, &senv) {
                                         genCall(outV, "write", [targetKit.literal(`<$nameString>`)]))]
       }
       
+      # XXX Every E object should have an emsg jsmethod so that it doesn't have the Cajita-bridge behavior
       if ((def matchers := script.getMatchers()).size().aboveZero()) {
         var senv_matcher := senv
         def [m] + _ := matchers # XXX support >1
@@ -479,9 +480,14 @@ def compile(expr, out, &senv) {
         def argt := targetKit.fresh()
         jsmethods with= [targetKit.literal("emsg"),
           targetKit.func([verbt, argt],
-            targetKit.seq([
-              compilePat(m.getPattern(), targetKit.array([verbt, argt]), null, &senv_matcher), # XXX handle match failure
-              compile(m.getBody(), jsKit."return", &senv_matcher)]))]
+            targetKit.callf(targetKit.nativeVar("e_doMiranda"), [
+              objtemp,
+              verbt,
+              argt,
+              targetKit.func([verbt, argt], # NOTE: reusing verb/arg temps
+                targetKit.seq([
+                  compilePat(m.getPattern(), targetKit.array([verbt, argt]), null, &senv_matcher), # XXX handle match failure
+                  compile(m.getBody(), jsKit."return", &senv_matcher)]))]))]
       }
       
       return targetKit.seq([
