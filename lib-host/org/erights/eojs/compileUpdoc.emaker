@@ -158,8 +158,10 @@ def rewriteDom(dir,
   {
     head.appendChild(def e := document.createElementNS(htmlns, "script"))
     e.appendChild(document.createTextNode(`
-      var $updocVar = new updoc_Driver(${jsQuote(prefix)})
-      var $envVar = $updocVar.augmentEnv(e_privilegedEnv)
+      var $envVar;
+      var $updocVar = new updoc_Driver(
+        ${jsQuote(prefix)},
+        function () { $envVar = $updocVar.augmentEnv(e_privilegedEnv); });
     `))
   }
   {
@@ -168,9 +170,23 @@ def rewriteDom(dir,
     e.setAttribute("href", `$dir/updoc.css`)
   }
   
+  # Visible Updoc control panel
+  def updocControlPanel := document.createElementNS(htmlns, "div")
+  body.insertBefore(updocControlPanel, body.getFirstChild()) # XXX insert after the h1 if there is one
+  updocControlPanel.setAttribute("class", "updoc-header-control-panel")
+  
+  # Control panel progress bar
   def updocProgressBar := document.createElementNS(htmlns, "p")
-  body.insertBefore(updocProgressBar, body.getFirstChild()) # XXX insert before the h1 if there is one
+  body.insertBefore(updocProgressBar, updocControlPanel)
   updocProgressBar.setAttribute("class", "updoc-progress-bar")
+  
+  { # Control panel restart button
+    updocControlPanel.appendChild(def e := document.createElementNS(htmlns, "button"))
+    e.appendChild(document.createTextNode(`Rerun`))
+    e.setAttribute("onclick", `
+      $updocVar.run()
+    `)
+  }
   
   var stepCounter := -1
   
