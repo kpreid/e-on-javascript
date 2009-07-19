@@ -480,14 +480,15 @@ def compile(expr, out, &senv) {
         def argt := targetKit.fresh()
         jsmethods with= [targetKit.literal("emsg"),
           targetKit.func([verbt, argt],
-            targetKit.callf(targetKit.nativeVar("e_doMiranda"), [
+            targetKit."return"(targetKit.callf(targetKit.nativeVar("e_doMiranda"), [
               objtemp,
               verbt,
               argt,
-              targetKit.func([verbt, argt], # NOTE: reusing verb/arg temps
+              targetKit.func([targetKit.fresh(), verbt, argt, targetKit.fresh()], # NOTE: reusing verb/arg temps
                 targetKit.seq([
-                  compilePat(m.getPattern(), targetKit.array([verbt, argt]), null, &senv_matcher), # XXX handle match failure
-                  compile(m.getBody(), jsKit."return", &senv_matcher)]))]))]
+                  compilePat(m.getPattern(), targetKit.call(targetKit.nativeVar("e_cajita"), "freeze",
+                    [targetKit.array([verbt, argt])]), null, &senv_matcher), # XXX handle match failure
+                  compile(m.getBody(), jsKit."return", &senv_matcher)]))])))]
       }
       
       return targetKit.seq([
