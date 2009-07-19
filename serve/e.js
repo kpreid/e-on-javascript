@@ -238,7 +238,7 @@ e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (typeof(specimen) === this.typeStr) {
     return specimen
   } else { // XXX miranda coerce
-    e_throw.emsg_eject_2(ejector, "E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + this.typeStr);
+    e_throw.emsg_eject_2(ejector, new Error("E coercion error: " + specimen + " a " + typeof(specimen) + " is not a " + this.typeStr));
   }
 }
 
@@ -250,7 +250,7 @@ e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   if (specimen instanceof this.constr) {
     return specimen
   } else { // XXX miranda coerce
-    e_throw.emsg_eject_2(ejector, "E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0])) // kluge
+    e_throw.emsg_eject_2(ejector, new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0]))); // kluge
   }
 }
 
@@ -341,8 +341,10 @@ function e_wrapJsFunction(jsFunction) {
 var e_e = {
   emsg_call_3: e_call,
   emsg_callWithPair_2: function (target, msg) {
-    // XXX coerce msg
-    return e_call(target, msg[0], msg[1])
+    msg = e_ConstList_guard.emsg_coerce_2(msg);
+    return e_call(target,
+                  e_string_guard.emsg_coerce_2(msg[0], e_throw),
+                  e_ConstList_guard.emsg_coerce_2(msg[1], e_throw));
   },
   emsg_send_3: e_send,
   emsg_sendOnly_3: e_sendOnly,
