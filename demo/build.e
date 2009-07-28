@@ -29,7 +29,11 @@ def libSources := [
   <file:../lib-target-eocl/>,
 ]
 
-compileLibraries(libs, libSources, <file:../serve/import/>, stdout, false)
+def failureCount := compileLibraries(libs, libSources, <file:../serve/import/>, stdout, <file:lib-report.html>.textWriter(), `E-on-JavaScript demo library compilation report - ${<unsafe:java.util.makeDate>(timer.now())}`, false)
+if (failureCount > 0) {
+  println(`*** $failureCount emaker compilations failed.`)
+  println(`*** Open lib-report.html for details.`)
+}
 
 # XXX kludge. The variables for "timer" and "alert" are bound by the standard e.js, so they become available by putting them in the compilation env. So this is a "permitted names" list, which is Obviously Bad.
 var env := withSlot(withSlot(makeStaticSafeEnv(compiler), "docita"), "timer")

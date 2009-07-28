@@ -13,4 +13,9 @@ def libSources := [
   <file:lib-target-eocl/>, # this should be created as a symlink to EoCL lib/
 ]
 
-compileLibraries(libs, libSources, <file:serve/import/>, stdout, false)
+def failureCount := compileLibraries(libs, libSources, <file:serve/import/>, stdout, <file:lib-report.html>.textWriter(), `E-on-JavaScript library compilation report - ${<unsafe:java.util.makeDate>(timer.now())}`, false)
+
+if (failureCount > 0) {
+  println(`*** $failureCount emaker compilations failed.`)
+  println(`*** Open lib-report.html for details.`)
+}

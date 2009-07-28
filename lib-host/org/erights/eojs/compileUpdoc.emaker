@@ -23,7 +23,7 @@ def nullWriter {match _ {}}
 def nullResolver {match _ {}}
 
 def htmlesc(t :String) {
-  return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+  return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
 }
 def jsQuote(t :String) {
   # XXX should use either jsKit (not accessible outside of the compiler currently) or Term-tree (currently has inaccuracy bugs wrt newlines) to generate real JS rather than relying on similarity of E string syntax

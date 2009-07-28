@@ -6,11 +6,34 @@ def compiler := <import:org.erights.eojs.compiler>
 def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
 def parse := <elang:syntax.makeEParser>.run
 
+def htmlesc(t :String) {
+  return t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;")
+}
+
 def mangleToIdentifier(text) { # XXX more thorough mangling, consistent with runtime and compiler
   return text.replaceAll("_", "_u").replaceAll(".", "_$")
 }
 
-def compileLibraries(dotNames, sources, destination, report, overwrite) {
+def compileLibraries(dotNames, sources, destination, progress, htmlReport, title, overwrite) {
+  
+  htmlReport.print(`
+<html><head>
+  <title>E-on-JavaScript library compilation report - ${htmlesc(title)}</title>
+  <style type="text/css">
+    pre {
+      font-size: 80%;
+      background: #FEE;
+    }
+    td.row { border-top: 1px solid gray; }
+  </style>
+</head><body>
+<table>
+<tr><th>FQN</th><th>Status</th><th>Source file</th></tr>
+<tr><th colspan=3>Error log</th></tr>
+`)
+
+  var failures := 0
+  
   for dotName in dotNames {
     def slashName := dotName.replaceAll(".", "/") # XXX what if there's a slash?
     def sourceFile := for dir in sources {
@@ -23,17 +46,22 @@ def compileLibraries(dotNames, sources, destination, report, overwrite) {
       if (!(r.__respondsTo("exists", 0)) || r.exists()) { break r }
     }
     def destFile := destination[slashName + ".js"]
-    report.print(`$dotName, `)
+    progress.print(`$dotName, `)
+    htmlReport.print(`<tr class="row"><td>${htmlesc(dotName)}</td>`)
     if (sourceFile == null) {
-      report.println(`didn't find input file`)
+      progress.println(`didn't find input file`)
+      htmlReport.println(`<td>didn't find input file</td><td></td>`)
+      failures += 1
     } else {
+      def sourceFileHtml := `<td><a href="file://${htmlesc(E.toString(sourceFile.getPath()))}">${htmlesc(E.toString(sourceFile))}</a></td>`
       if (destFile.exists() && !overwrite) {
         if (!sourceFile.__respondsTo("lastModified", 0) || destFile.lastModified() > sourceFile.lastModified()) {
-          report.println(`source older`)
+          progress.println(`source older`)
+          htmlReport.println(`<td>source older</td>$sourceFileHtml`)
           continue
         }
       }
-      report.println(`compiling$\n    $sourceFile -> $destFile`)
+      progress.println(`compiling from:$\n    $sourceFile`)
       try {
         destination[{def rx`(@dirname.*/)[^/]+` := slashName; dirname}].mkdirs(null)
         destFile.setText(`
@@ -41,9 +69,17 @@ def compileLibraries(dotNames, sources, destination, report, overwrite) {
                 ${compiler.returning(parse(sourceFile.getTwine()), {var e := staticSafeEnv; &e})}
             };
         `)
+        htmlReport.println(`<td>compiled</td>$sourceFileHtml`)
       } catch p {
-        report.println(`Failed to compile: $p${p.eStack()}$\n---$\n$\n$\n`)
+        failures += 1
+        progress.println(`Failed to compile: $p`)
+        htmlReport.println(`<td>compilation failed</td>$sourceFileHtml</tr>`)
+        htmlReport.println(`<tr><td colspan="3"><pre># problem: ${htmlesc(E.toString(p))}$\n${htmlesc(E.toString(p.eStack()))}</td>`)
       }
     }
+    htmlReport.println("</tr>")
   }
+  htmlReport.println("</body></html>")
+  
+  return failures
 }
