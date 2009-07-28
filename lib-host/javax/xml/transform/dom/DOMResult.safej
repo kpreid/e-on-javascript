@@ -12,5 +12,5 @@ class(safe,
               method("getNode()"),
               method(suppress, "setNextSibling(Node)"),
               method(suppress, "getNextSibling()"),
-              method(suppress, "setSystemId(String)"),
-              method(suppress, "getSystemId()")))
+              method(reject, "setSystemId(String)"),
+              method(reject, "getSystemId()")))
