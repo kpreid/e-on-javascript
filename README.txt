@@ -30,9 +30,13 @@ While sameness is probably impossible to solve, methods visibility could be fixe
 
 2. Run make-libs.e. (There will be a lot of errors due to E code not quite fully supported; don't worry about them.)
 
+(See the Makefile for additional tools and shortcuts.)
+
 --- Test suite
 
-Run make-test.e (which will download and compile the E specification test suite from wiki.erights.org), then open test-conv/index.html, which will load a series of iframes with each test file. Note that the conversion does not perfectly preserve the original document content: in particular, non-updoc text inside <pre> is not preserved. Also, there is currently a lot of unstyled navigation-bar cruft.
+Run make-test.e (which will download and compile the E specification test suite from wiki.erights.org), then open test-conv/index.html, which will load a series of iframes with each test file. (Or run "make test".)
+
+Note that the conversion does not perfectly preserve the original document content: in particular, non-updoc text inside <pre> is not preserved. Also, there is currently a lot of unstyled navigation-bar cruft from the wiki. (This, as well as imperfect selection of pages to include, will hopefully be fixed once the download process is converted to use the MediaWiki API.)
 
 --- Writing an application
 
