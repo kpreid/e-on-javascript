@@ -20,16 +20,16 @@ def makeEqualizer(shallowEq, refShorten) {
       # XXX use non-E printing
       # traceln("optSame: entering " + E.toQuote(a) + " " + E.toQuote(b))
       if (shallowEq(a, b)) {
-        traceln("optSame: leaving, shallow eq")
+        #traceln("optSame: leaving, shallow eq")
         return true
       }
       def shortA := refShorten(a)
       def shortB := refShorten(b)
       if (shallowEq(shortA, shortB)) {
-        traceln("optSame: leaving, shortened eq")
+        #traceln("optSame: leaving, shortened eq")
         return true
       }
-      traceln("optSame: leaving, different")
+      #traceln("optSame: leaving, different")
       return false
     }
   }
