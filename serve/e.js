@@ -703,6 +703,16 @@ String.prototype.emsg_add_1 = function (other) {
 String.prototype.emsg_rjoin_1 = function (items) {
   return e_ConstList_guard.emsg_coerce_2(items, e_throw).join(this)
 }
+String.prototype.emsg_multiply_1 = function (times) {
+  times = e_int_guard.emsg_coerce_2(times, e_throw);
+  
+  // This implementation is just from a guess that it would be faster than repeated + concatenation.
+  var init = [];
+  for (var i = 0; i < times; i++) {
+    init.push(this);
+  }
+  return init.join("");
+}
 
 var e_slot_throw = e_makeFinalSlot(e_throw)
 var e_slot_E = e_makeFinalSlot(e_e)
