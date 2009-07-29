@@ -11,6 +11,13 @@ def VarPattern := <type:org.erights.e.elang.evm.VarPattern> # import won't ???
 def SlotPattern := <elang:evm.makeSlotPattern>.asType()
 def IgnorePattern := <elang:evm.makeIgnorePattern>.asType()
 
+def first__quasiParser := <import:org.erights.e.tools.text.first__quasiParser>
+def makeTextWriter := <elib:oldeio.makeTextWriter>
+def makeString := <import:java.lang.makeString>
+
+# XXX should be finite size cache
+def mmCache := [].asMap().diverge()
+
 def map {
   to v(f, coll) {
     return accum [] for v in coll {_.with(f(v))}}
@@ -85,14 +92,22 @@ def jsKit {
   to literal(v) {
     return switch (v) {
       match s :String {
-        # XXX probably a good idea to quote all of Unicode, or at least other control characters
-        def quoted := `'${v.replaceAll("\\", "\\\\").replaceAll("'", "\\'").replaceAll("\n", "\\n")}'`
-        # for compatibility with JS-in-HTML
-        makeSV(EXPR, if (quoted.indexOf("</") != -1) {
-          `(${quoted.replaceAll("</", "<'+'/")})`
-        } else {
-          quoted
-        }, [].asSet())
+        def [out, sb] := makeTextWriter.makeBufferingPair()
+        out.print("'")
+        for ch in s {
+          # Escape control chars, non-ASCII, quotes, backslashes, <>& for HTML CDATA
+          if ("\"'\\".indexOf1(ch) != -1) {
+            out.print("\\", ch)
+          } else if (" !#$%&()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~".indexOf1(ch) == -1) {
+            # XXX review handling of characters outside the Unicode BMP (> 0xFFFF)
+            out.print(makeString.format("\\u%04x", [ch.asInteger()]))
+          } else {
+            out.print(ch)
+          }
+        }
+        out.print("'")
+        
+        makeSV(EXPR, sb.snapshot(), [].asSet())
       }
       match c :char   { jsKit.new(jsKit.nativeVar("e_Character"), [jsKit.literal(E.toString(v))]) }
       match n :int     { makeSV(EXPR, `($n)`, [].asSet()) }
@@ -121,7 +136,7 @@ def jsKit {
   to func(params, body :SV) {
     def tc := [].asSet().diverge()
     
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     tw.print("(function (")
     tw.print(", ".rjoin(map.v(fn a { a.out(tc) }, params)))
     tw.print(") {")
@@ -133,7 +148,7 @@ def jsKit {
   to "if"(test :Expr, then :SV, els :SV) {
     def tc := [].asSet().diverge()
     
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     tw.print("if (")
     tw.indent().println()
     tw.indent().print(test.out(tc))
@@ -150,7 +165,7 @@ def jsKit {
   to "tryCatch"(body :SV, exVar :Expr, catchBody :SV) { # XXX Expr should be Var
     def tc := [].asSet().diverge()
     
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     tw.print("try {")
     tw.indent().println()
     tw.indent().print(body.out(tc))
@@ -165,7 +180,7 @@ def jsKit {
   to scope(body :SV) {
     def tc := [].asSet().diverge()
     
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     tw.print("(function () {")
     tw.indent().lnPrint(body.out(tc))
     tw.lnPrint("})()")
@@ -204,7 +219,7 @@ def jsKit {
   }
   to object(assocs :List[Tuple[Expr, Expr]]) {
     def tc := [].asSet().diverge()
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     tw.println("({")
     tw.indent().println()
     tw.indent().print(",\n".rjoin(map.v(fn [k,v] { k.out(tc) + ": " + v.out(tc) }, assocs)))
@@ -214,7 +229,7 @@ def jsKit {
   }
   to array(elems :List[Expr]) {
     def tc := [].asSet().diverge()
-    def [tw, sb] := <elib:oldeio.makeTextWriter>.makeBufferingPair()
+    def [tw, sb] := makeTextWriter.makeBufferingPair()
     if (elems.size() > 1) {
       tw.print("[")
       tw.indent().println()
