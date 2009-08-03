@@ -5,6 +5,12 @@
 
 def jsTools := <import:org.erights.eojs.jsTools>
 
+def TextWriter0 {
+  to coerce(specimen, ejector) {
+    return specimen # XXX big fat security hole for some applications. Need to implement TextWriter guard.
+  }
+}
+
 /** This is a workaround for not having real ConstMaps and TraversalKeys. */
 def makeObjectMapKludge(assocs) {
   return def objectMapKludge {
@@ -87,6 +93,9 @@ def _makeTextWriter(strings, exitMap) {
 }
 
 def makeTextWriter {
+  to asType() {
+    return TextWriter0
+  }
   to makeBufferingPair() {
     def strings := [].diverge()
     def buffer {
