@@ -7,6 +7,15 @@ It is an E <http://www.erights.org/> implementation entirely written in E and Ja
 
 It is rather sketchy: various parts are sufficient only to run the test cases I've tried so far, and there are various places where escaping or quoting or guarding is not quite right -- that is, don't try to run untrusted code in it yet!
 
+--- Catalog of known security-relevant incompleteness/bugs
+
+* TextWriter guard doesn't.
+* E objects are not Cajita-frozen; Cajita code can change them.
+* Cajita code can create misbehaving refs.
+* Compiler and runtime have not been reviewed for being proof against
+  * names with arbitrary characters.
+  * names used in objects which are significant to JavaScript (e.g. "toString").
+
 --- Caution about E semantics
 
 When in Caja-interop mode, several guarantees made by E semantics fail. In particular, unprivileged Cajita code and any other JavaScript code may:
