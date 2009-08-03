@@ -41,6 +41,11 @@ var e_privilegedEnvNames = []
 
 function e_defaultPrint(obj) {
   var s = "" + obj; // safe toString()
+  
+  // print functions with name only, not source
+  s = s.replace(/^function ([\w$]+)?\(\) {\n.*\n}$/, "<JS func $1>");
+  
+  // print generic objects with their keys
   if (s === "[object Object]") {
     var keys = e_cajita.ownKeys(obj);
     keys.sort();
