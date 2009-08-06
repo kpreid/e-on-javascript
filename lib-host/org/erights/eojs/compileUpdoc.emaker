@@ -8,7 +8,8 @@ def compiler := <import:org.erights.eojs.compiler>
 def commonEmakerList := <import:org.erights.eojs.commonEmakerList>
 #def staticSafeEnv := <import:org.erights.eojs.makeStaticSafeEnv>(compiler)
 def staticPrivEnv := <import:org.erights.eojs.makeStaticPrivilegedEnv>(compiler)
-def parse := <elang:syntax.makeEParser>.run
+def makeELexer := <elang:syntax.makeELexer>
+def makeEParser := <elang:syntax.makeEParser>
 def makeUpdocParser := <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null) # XXX support the user supplying a hash-cache for the animation case
 def makeTextWriter := <elib:oldeio.makeTextWriter>
 
@@ -78,12 +79,13 @@ def updocTermToSteps(updoc) {
   }
 }
 
-def stepToJS(prefix, i, step, envVar) {
+def stepToJS(prefix, i, step, envVar, eParser) {
   def term`test(@{via (stripNewlineStrict) source},
                 {@answers*})` := step
 
+  eParser.setSource(source)
   def body := escape syntaxFail {
-    def ast := try { parse(source) } catch syntaxError { syntaxFail(syntaxError) }
+    def ast := try { eParser.parse() } catch syntaxError { syntaxFail(syntaxError) }
 
     var senv := compiler.importEnv(compiler.getBindEnvMaker()(staticPrivEnv, "interp"), ast.staticScope())
     def js := compiler.assignResult("res", ast, &senv)
@@ -139,6 +141,19 @@ def rewriteDom(dir,
                 => whetherFoundResolver := nullResolver,
                 => prefix
                ] | _, document) {
+
+  # Parser to use for E source in updoc (init copied from EoJ elang.cmd.cmdMakerMaker)
+  def eParser := {
+    def lexer := makeELexer(null,           # optLineFeeder
+                            false,          # partialFlag
+                            false)          # noTabsFlag
+    makeEParser.make(null,    # optProps
+                     lexer,
+                     progress, # warning
+                     false,    # debugFlag
+                     false)    # onlyOneExprFlag
+  }
+
   def head := document.getElementsByTagName("head").item(0)
   def body := document.getElementsByTagName("body").item(0)
   {
@@ -235,7 +250,7 @@ def rewriteDom(dir,
         
         stepDiv.appendChild(def stepScript := document.createElementNS(htmlns, "script"))
         stepScript.appendChild(document.createTextNode(`
-          ${stepToJS(prefix, i, step, envVar)}
+          ${stepToJS(prefix, i, step, envVar, eParser)}
         `))
         for answer in answers {
           def term`@{label :String}: @{via (stripNewlineStrict) text}` := answer
