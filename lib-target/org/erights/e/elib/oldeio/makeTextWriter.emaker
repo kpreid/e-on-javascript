@@ -41,7 +41,8 @@ def _makeTextWriter(strings, exitMap) {
       }
       def state := Ref.state(x)
       if (state == "NEAR") {
-        x.__printOn(textWriter)
+        def subWriter := _makeTextWriter(strings, exitMap.with(x, "<***CYCLE***>")) # XXX security: do we trust the exitMap to not abuse x?
+        x.__printOn(subWriter)
       } else if (state == "BROKEN") {
         textWriter.write("<")
         if (x == jsTools.undefined()) {
