@@ -57,6 +57,7 @@ Platform-specific safe objects by FQN:
       null(): return the JS null value
       asFunction(func): convert an E function into a JavaScript function
       asObject(map): convert an E map into a JavaScript object
+      array(...): return a JS array, not Cajita-frozen, with the arguments as elements (does NOT have the 1-argument behavior of JS new Array()).
   - org.erights.eojs.cajita
       The "cajita" object from Caja.
   - org.erights.eojs.cajitaEnv

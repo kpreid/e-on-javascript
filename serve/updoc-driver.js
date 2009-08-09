@@ -41,7 +41,7 @@ function updoc_Driver(prefix, runInitFunc) {
   var stderrWB = e_call(e_import("org.erights.e.elib.oldeio.makeTextWriter"), "makeBufferingPair", []);
   
   function makePrintOrPrintln(writer, ln) {
-    return e_cajita.freeze({
+    var printfunc = e_cajita.freeze({
       emsg___printOn_1: function (out) {
         e_call(out, "write", ["<print" + (ln ? "ln" : "") + ">"]);
       },
@@ -51,10 +51,11 @@ function updoc_Driver(prefix, runInitFunc) {
           if (ln) e_call(writer, "println", []);
           return e_null;
         } else {
-          e_doMiranda(functionObject, verb, args, e_noSuchMethod);
+          e_doMiranda(printfunc, verb, args, e_noSuchMethod);
         }
       },
     });
+    return printfunc;
   }
 
   function captureOutput(answers, name, buffer) {

@@ -23,6 +23,9 @@ var e_cajita = e_cajitaMode ? cajita : {
     }
   },
   "freeze": function (obj) { return e_cajita.snapshot(obj) },
+  "isFrozen": function (obj) {
+    return obj instanceof Array || obj.constructor == Object;
+  },
   "hasOwnPropertyOf": function (o, p) { return o.hasOwnProperty(p) },
   "ownKeys": function (obj) {
     var result = [];
@@ -578,7 +581,7 @@ Array.prototype.emsg___printOn_1 = function (out) {
   if (!e_cajitaMode || ___.isFrozen(this)) {
     e_call(this, "printOn", ["[", ", ", "]", out])
   } else {
-    e_call(out, "write", ["<JS array>"])
+    e_call(this, "printOn", ["(JS array)[", ", ", "]", out])
   }
 }
 
@@ -614,11 +617,22 @@ Array.prototype.emsg_size_0 = function () {
 Array.prototype.emsg_get_1 = function (index) {
   var x = this[e_int_guard.emsg_coerce_2(index, e_throw)]
   if (x === undefined) {
-    throw "ConstList index out of bounds" // XXX proper type
+    throw "ConstList index out of bounds" // XXX proper type. Also this fails if the array contains undefined.
   } else {
     return x
   }
-}
+};
+Array.prototype.emsg_put_2 = function (index, value) {
+  index = e_int_guard.emsg_coerce_2(index, e_throw);
+  if (e_cajita.isFrozen(this)) { // XXX test for this
+    throw new Error("This array is frozen");
+  }
+  if (index < 0) {
+    // Caja project has discovered that JS impls expose random stuff at negative indexes, so we have to check ourselves. XXX write tests for this.
+    throw new Error("Negative array index");
+  }
+  this[index] = value;
+};
 Array.prototype.emsg_snapshot_0 = function () {
   return e_cajita.snapshot(this)
 }
@@ -735,18 +749,19 @@ e_safeEnvNames.push("null")
 e_safeEnvNames.push("NaN")
 e_safeEnvNames.push("Infinity")
 e_safeEnvNames.push("any")
-var e_slot___makeList = e_makeFinalSlot({
+var e_makeList;
+var e_slot___makeList = e_makeFinalSlot(e_makeList = e_cajita.freeze({
   emsg___printOn_1: function (out) {
     e_call(out, "write", ["__makeList"]); // XXX apply the exit principle
   },
-  emsg: function (verb, args) { 
+  emsg: function (verb, args) {
     if (verb === "run") {
       return e_cajita.freeze(args);
     } else {
-      e_doMiranda(functionObject, verb, args, e_noSuchMethod);
+      e_doMiranda(e_makeList, verb, args, e_noSuchMethod);
     }
   },
-})
+}));
 e_safeEnvNames.push("__makeList")
 var e_slot___makeMap = e_makeFinalSlot(e_makeMap)
 e_safeEnvNames.push("__makeMap")
@@ -1003,7 +1018,7 @@ var e_makeSameGuard = {
 }
 var e_maker_org_$cubik_$cle_$prim_$Same = function () { return e_makeSameGuard } // XXX inappropriate fqn
 
-var e_jsTools = {
+var e_jsTools = e_cajita.freeze({
   emsg_undefined_0: function () { return undefined; },
   emsg_null_0: function () { return null; },
   emsg___printOn_1: function (out) {
@@ -1029,7 +1044,19 @@ var e_jsTools = {
     ]);
     return e_cajitaMode ? ___.freeze(result) : result;
   },
-};
+  emsg: function (verb, args) { 
+    if (verb === "array") {
+      // Could be cajita.copy, if we depended on Cajita.
+      var out = [];
+      for (var i = 0; i < args.length; i++) {
+        out[i] = args[i];
+      }
+      return out;
+    } else {
+      e_doMiranda(e_jsTools, verb, args, e_noSuchMethod);
+    }
+  },
+});
 var e_maker_org_$erights_$eojs_$jsTools = function () { return e_jsTools }
 var e_maker_org_$erights_$eojs_$cajita = function () { return cajita }
 var e_maker_org_$erights_$eojs_$cajitaEnv = function () { return ___.sharedImports }
