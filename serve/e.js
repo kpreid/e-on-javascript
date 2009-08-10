@@ -46,7 +46,7 @@ function e_defaultPrint(obj) {
   var s = "" + obj; // safe toString()
   
   // print functions with name only, not source
-  s = s.replace(/^function ([\w$]+)?\((?:.*?)\) {\n.*\n}$/, "<JS func $1>");
+  s = s.replace(/^function\s+([\w$]+)?\s*\((?:.*?)\)\s*\{[\s\S]*\}\s*$/, "<JS func $1>");
   
   // print generic objects with their keys
   if (s === "[object Object]") {
