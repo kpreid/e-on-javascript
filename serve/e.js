@@ -376,7 +376,7 @@ function e_Character(charString) {
 e_Character.prototype.emsg___printOn_1 = function (out) {
   e_call(out, "write", ["'"])
   // XXX escaping
-  e_call(out, "write", [this.string])
+  e_writeEscapedText(this.string, out);
   e_call(out, "write", ["'"])
 }
 e_Character.prototype.toString = function () {
@@ -710,11 +710,35 @@ Boolean.prototype.emsg_pick_2 = function (ifTrue, ifFalse) {
   return this.valueOf() ? ifTrue : ifFalse
 }
 
+function e_writeEscapedText(text, out) {
+  // Behavior directly imitating E-on-Java
+  // XXX review UTF-16 issues
+  for (var i = 0; i < text.length; i++) {
+     var j = i;
+     var c;
+     while ("\u0020" <= (c = text[j]) && c < "\u007f" && c != "\\" && c != '"' && c != "'") j++;
+     e_call(out, "write", [text.substring(i, j)]);
+     if (j < text.length) {
+       var esc;
+       switch (j) {
+         case "\b": esc = "\\b"; break;
+         case "\t": esc = "\\t"; break;
+         case "\n": esc = "\\n"; break;
+         case "\f": esc = "\\f"; break;
+         case "\r": esc = "\\r"; break;
+         default:   
+           esc = "0000" + c.charCodeAt(0).toString(16);
+           esc = "\\u" + esc.substring(esc.length - 4);
+       }
+       e_call(out, "write", [esc]);
+     }
+     i = j;
+  }
+}
 String.prototype.emsg___printOn_1 = function (out) {
-  e_call(out, "write", ['"'])
-  // XXX escaping
-  e_call(out, "write", [this])
-  e_call(out, "write", ['"'])
+  e_call(out, "write", ['"']);
+  e_writeEscapedText(this, out);
+  e_call(out, "write", ['"']);
 }
 String.prototype.emsg_add_1 = function (other) {
   return this + e_string_guard.emsg_coerce_2(other, e_throw)
