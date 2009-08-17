@@ -26,6 +26,23 @@
   text-align: center;
 }
 
+/* --- step labels --- */
+
+.updoc-step {
+  margin-left: 2.4em;
+}
+
+.updoc-step-label, a:link.updoc-step-label /* for specificity */ {
+  background: white;
+  color: gray;
+  
+  display: table;
+  float: left;
+  text-align: right;
+  width: 2em;
+  margin-left: -2.8em;
+}
+
 /* --- not-yet-run --- */
 
 .updoc-step.updoc-pending {

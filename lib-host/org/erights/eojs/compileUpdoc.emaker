@@ -244,6 +244,11 @@ def rewriteDom(dir,
         stepDiv.setAttribute("class", "updoc-step updoc-pending")
         stepDiv.setAttribute("id", `$prefix-step-$i`)
 
+        stepDiv.appendChild(def numberBox := document.createElementNS(htmlns, "a"))
+        numberBox.setAttribute("class", "updoc-step-label")
+        numberBox.setAttribute("href", `#$prefix-step-$i`)
+        numberBox.appendChild(document.createTextNode(`$i:`))
+
         stepDiv.appendChild(def exprPre := document.createElementNS(htmlns, "pre"))
         exprPre.setAttribute("class", "updoc-expr")
         exprPre.appendChild(document.createTextNode(`? ${source.replaceAll("\n", "\n> ")}`))
