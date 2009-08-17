@@ -296,7 +296,7 @@ def rewriteDom(dir,
 }
 
 def compileUpdoc {
-  /** Convert parsed Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. "result" is a javax.xml.transform.Result to write to. */
+  /** Convert plain-text Updoc into a complete HTML document. "dir" is the relative or absolute URL (with no trailing slash) of the directory in which the EoJS runtime support files are located. whetherFoundResolver, if provided, is resolved to a boolean indicating whether there were any updoc steps present. "result" is a javax.xml.transform.Result to write to. */
   to toHTMLDocument(
     dir :String,
     [=> title :String := "E-on-JavaScript converted Updoc",
@@ -304,7 +304,7 @@ def compileUpdoc {
      => includeScriptURLs := [],
      => progress :Writer := nullWriter
     ] | moreOptions,
-    updoc :Term,
+    updocText :Twine,
     result :<type:javax.xml.transform.Result>
   ) {
     def prefix := "updsingleton"
@@ -331,49 +331,25 @@ def compileUpdoc {
     body.appendChild(def heading := document.createElementNS(htmlns, `h$documentHeadingLevel`))
     heading.appendChild(document.createTextNode(title))
     
-    # --- actual updoc processing ---
-    
-    for i => step in updocTermToSteps(updoc) {
-      def term`test(@{via (stripNewlineStrict) source},
-                    {@answers*})` := step
+    body.appendChild(def pre := document.createElementNS(htmlns, "pre"))
+    pre.appendChild(document.createTextNode(updocText))
 
-      progress.print(".")
-      progress.flush()
-      
-      body.appendChild(def pre := document.createElementNS(htmlns, "pre"))
-      pre.appendChild(document.createTextNode(`? ${source.replaceAll("\n", "\n> ")}
-${accum "" for answer in answers { _ + {
-          def term`@{label :String}: @{via (stripNewlineStrict) text}` := answer
-
-          `# $label: ${text.replaceAll("\n", `$\n# ${" " * label.size()}  `)}$\n$\n`
-        }}}`))
-    }
-    
-    # --- ---
-    
-    #progress.print(document.saveXML(document.getDocumentElement()))
     rewriteDom(dir, moreOptions | ["prefix" => "updsingleton", => progress], document)
     
     return writeDocument(document, result)
   }
   /** As toHTMLDocument/4, but takes HTML source and produces an XHTML document optionally including all the markup of the original, with added Updoc support. */
   to animateHTMLDocument(
-    includeOriginal :boolean,
     dir :String,
     options :Map,
     htmlSource :Twine,
     result :<type:javax.xml.transform.Result>
   ) {
-    if (includeOriginal) {
-      def document := htmlToDom(htmlSource)
-      #document.getElementsByTagName("html").item(0).setAttribute("xmlns", htmlns)
-      rewriteDom(dir, options | ["prefix" => "updsingleton"], document)
-      
+    def document := htmlToDom(htmlSource)
+    #document.getElementsByTagName("html").item(0).setAttribute("xmlns", htmlns)
+    rewriteDom(dir, options | ["prefix" => "updsingleton"], document)
+    
     return writeDocument(document, result)
-    } else {
-      return compileUpdoc.toHTMLDocument(dir, options, 
-        makeUpdocParser.parseHtml(htmlSource), result)
-    }
   }
   
   /** Create a HTML document which will embed and execute every listed converted-updoc file. */

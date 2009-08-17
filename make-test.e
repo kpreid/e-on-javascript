@@ -56,7 +56,7 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
   def convertedFile := convertDir[`$name.xhtml`]
 
   stderr.print(`  $name`)
-  compileUpdoc.animateHTMLDocument(true, "../serve", [
+  compileUpdoc.animateHTMLDocument("../serve", [
     "title" => name,
     "progress" => stderr,
     "whetherFoundResolver" => def found,

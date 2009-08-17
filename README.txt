@@ -129,12 +129,10 @@ An Updoc file can be converted into a HTML document which runs its code and disp
 
   ? def compileUpdoc := <import:org.erights.eojs.compileUpdoc>
   > def makeStreamResult := <import:javax.xml.transform.stream.makeStreamResult>
-  > def makeUpdocParser :=
-  >   <import:org.erights.e.tools.updoc.makeUpdocParserAuthor>(null)
   
   ? compileUpdoc.toHTMLDocument(
   >   stderr, "../serve",
-  >   makeUpdocParser.parsePlain(<file:foo.updoc>.getTwine()),
+  >   <file:foo.updoc>.getTwine(),
   >   makeStreamResult(<file:foo.html>))
   
 There is also a multi-file updoc runner; it is used in the standard test suite (make-test.e).
