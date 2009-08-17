@@ -240,7 +240,7 @@ e_NativeGuard.prototype.emsg___printOn_1 = function (out) {
   e_call(out, "write", [this.eNameStr])
 }
 e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
-  if (typeof(specimen) === "object") {
+  if (typeof(specimen) === "object" && specimen !== null) {
     specimen = specimen.valueOf()
   }
   if (typeof(specimen) === this.typeStr) {
