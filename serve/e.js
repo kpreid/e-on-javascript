@@ -683,6 +683,9 @@ Number.prototype.emsg_approxDivide_1 = function (other) {
 Number.prototype.emsg_floorDivide_1 = function (other) {
   return Math.floor(this / e_number_guard.emsg_coerce_2(other, e_throw))
 };
+Number.prototype.emsg_pow_1 = function (other) {
+  return Math.pow(this, e_number_guard.emsg_coerce_2(other, e_throw));
+};
 
 (function () {
   var mathCopy0 = ["abs", "sin", "cos", "tan", "floor", "ceil"] // XXX complete this list
