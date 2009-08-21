@@ -17,32 +17,46 @@ def convertDir := <file:test-conv/>
 if (!downloadDir.exists()) {
   stderr.println("Downloading specification HTML...")
   downloadDir.mkdirs(null)
-
-  # XXX should not use immediate form
-  wget("--recursive", 
-       "--level=2",
-       # Depth calculation:
-       #   1 to get subcategories of the categories
-       # + 1 to get at the pages in the categories
-       # = 2.
-       # This will break once the categories are big enough (200) to start paging.
-       # XXX Instead, we should upgrade the wiki and use the MediaWiki API -- 
-       #   http://www.mediawiki.org/wiki/API:Query_-_Lists#categorymembers_.2F_cm
-       # to unambiguously retrieve all the category members.
-       
-       "--convert-links",
-       "--cut-dirs=1",
-       "--directory-prefix=" + downloadDir.getPlatformPath(),
-       "--html-extension",
-       
-        "--exclude-directories=/wiki/Special:Search",
-        "--reject", "Special:*,Main_Page,Erights:*,Help:*,Current?events",
-        "--follow-tags=a", # don't bother with stylesheets etc.
-        "--include-directories=/wiki/", # reject the /w/ meta-pages
-        "--no-parent", "--no-host-directories",
-
-        "http://wiki.erights.org/wiki/Category:E_specification")
   
+  # XXX this code is crufty and wrong wrt escaping
+  
+  def fetchPage(nameURLText, pageRenderURL) {
+    def rendered := pageRenderURL.getTwine()
+    # XXX using <base> is suboptimal; it prevents local relative urls, namely
+    #   updoc progress bar links
+    #   ../serve
+    #   crosslinks between downloaded spec pages
+    # -- Use a real parser and rewriter instead.
+    downloadDir[nameURLText + ".html"].setText(`$\
+<html><head>
+  <base href="${pageRenderURL.toExternalForm().replaceAll("&", "&amp;")}">
+</head><body>
+<h1>$nameURLText</h1>">
+$rendered
+</body></html>`)
+  }
+  
+  def fetchCategory(catUrlesc, progress) {
+    # XXX replace this with use of the MediaWiki API.
+    # Does not deal with paged categories and is probably wrong wrt escaping.
+    progress.lnPrint(`$catUrlesc:`)
+    var rendered := <http>[`//wiki.erights.org/w/index.php?title=Category:$catUrlesc&action=render`].getTwine() # XXX should be async
+    while (rendered =~ `@{_}href="http://wiki.erights.org/wiki/@subpageUrl"@{rest}`) {
+      rendered := rest
+      switch (subpageUrl) {
+        match `Category:@subcat` {
+          fetchCategory(subcat, progress.indent("  "))
+          progress.println()
+        }
+        match _ {
+          progress.print(` $subpageUrl,`)
+          fetchPage(subpageUrl, <http>[`//wiki.erights.org/w/index.php?title=$subpageUrl&action=render`])
+        }
+      }
+    }
+  }
+  
+  fetchCategory("E_specification", stderr)
   stderr.println("Download complete.")
 } else {
   stderr.println("Using existing downloaded specification.")
@@ -56,7 +70,7 @@ for `@name.html` => htmlFile in downloadDir.deepReadOnly() {
   def convertedFile := convertDir[`$name.xhtml`]
 
   stderr.print(`  $name`)
-  compileUpdoc.animateHTMLDocument("../serve", [
+  compileUpdoc.animateHTMLDocument("file://" + <file:.>.getPlatformPath() + "/serve", [
     "title" => name,
     "progress" => stderr,
     "whetherFoundResolver" => def found,
