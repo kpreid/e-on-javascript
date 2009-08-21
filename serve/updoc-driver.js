@@ -91,7 +91,7 @@ function updoc_Driver(prefix, runInitFunc) {
 
       if (match && (   a[0] != exp[0]
                     || a[1] != exp[1])) {
-        stepOutput.appendChild(document.createTextNode("fail at " + j + "-" + (a[0] != exp[0]) + "-" + (a[1] != exp[1]) + " lenGot=" + a[1].length + "=<<" + a[1] + ">> lenExp=" + exp[1].length + "=<<" + exp[1] + ">>"));
+        //stepOutput.appendChild(document.createTextNode("fail at " + j + "-" + (a[0] != exp[0]) + "-" + (a[1] != exp[1]) + " lenGot=" + a[1].length + "=<<" + a[1] + ">> lenExp=" + exp[1].length + "=<<" + exp[1] + ">>"));
         match = false;
       }
     }
