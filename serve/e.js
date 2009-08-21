@@ -9,8 +9,10 @@ function e_js_writebreak() {
   document.getElementById("output").appendChild(document.createElement('br'))
 }
 
+var e_theGlobal = this;
+
 // To avoid incoherent behavior, we decide on whether we run in Cajita-interop style only once.
-var e_cajitaMode = !!window.cajita
+var e_cajitaMode = !!e_theGlobal.cajita;
 
 // Stub for Cajita facilities if Cajita isn't loaded
 var e_cajita = e_cajitaMode ? cajita : {
@@ -808,7 +810,7 @@ function e_import(what) {
   what = e_string_guard.emsg_coerce_2(what, e_throw)
   
   // XXX inadequate escaping
-  var compiledFn = window["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
+  var compiledFn = e_theGlobal["e_maker_" + what.split("_").join("_u").split(".").join("_$")]
   if (compiledFn === undefined) {
       try { console.trace() } catch (e) {} // Debugging
       throw new Error("Import not found: " + what)
@@ -837,7 +839,7 @@ e_slot_Ref = e_magicLazySlot(function () {
 e_safeEnvNames.push("Ref")
 
 function e_addImportToSafe(noun, fqn) {
-  window[e_slotVarName(noun)] = e_magicLazySlot(function () {
+  e_theGlobal[e_slotVarName(noun)] = e_magicLazySlot(function () {
     return e_import(fqn)
   })
   e_safeEnvNames.push(noun)
@@ -940,7 +942,7 @@ e_slot_traceln = e_makeFinalSlot({
   emsg_run_1: function () {},
 })
 // ...unless we can hook it up to something.
-if (window["console"]) { // supplied by at least Firefox+Firebug and Safari, according to my research
+if (e_theGlobal["console"]) { // supplied by at least Firefox+Firebug and Safari, according to my research
   e_call(e_slot_traceln, "get", []).emsg_run_1 = function (s) {
     console.log(e_call(e_string_guard, "coerce", [s, e_throw]))
   }
@@ -981,7 +983,7 @@ e_Env.prototype.emsg_with_2 = function (insertNoun, value) {
 function e_makeSafeEnv() {
   var table = {}
   for (var i = 0; i < e_safeEnvNames.length; i++) {
-    table[e_safeEnvNames[i]] = window[e_slotVarName(e_safeEnvNames[i])]
+    table[e_safeEnvNames[i]] = e_theGlobal[e_slotVarName(e_safeEnvNames[i])]
   }
   return new e_Env(table)
 }
@@ -989,7 +991,7 @@ function e_makeSafeEnv() {
 function e_makePrivilegedEnv() {
   var table = {}
   for (var i = 0; i < e_safeEnvNames.length; i++) {
-    table[e_privilegedEnvNames[i]] = window[e_slotVarName(e_privilegedEnvNames[i])]
+    table[e_privilegedEnvNames[i]] = e_theGlobal[e_slotVarName(e_privilegedEnvNames[i])]
   }
   return new e_Env(table)
 }
@@ -1129,5 +1131,5 @@ var e_privilegedEnv = e_makeSafeEnv()
   .emsg_with_2("timer", e_timer)
   .emsg_with_2("alert", e_wrapJsFunction(function (x) { alert(x); }))
   .emsg_with_2("EoJS", e_EoJS)
-  .emsg_with_2("window", window);
+  .emsg_with_2("window", e_theGlobal.window);
   
