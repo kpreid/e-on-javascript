@@ -31,7 +31,7 @@ if (!downloadDir.exists()) {
 <html><head>
   <base href="${pageRenderURL.toExternalForm().replaceAll("&", "&amp;")}">
 </head><body>
-<h1>$nameURLText</h1>">
+<h1>$nameURLText</h1>
 $rendered
 </body></html>`)
   }

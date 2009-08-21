@@ -44,14 +44,19 @@ var e_privilegedEnvNames = []
 
 // --- core - message dispatch facilities ---
 
+function e_jsFunctionName(func) {
+  // .name is not specified by ECMAScript
+  return func.name ? func.name : ("" + func).replace(/^function\s+([\w$]+)?\s*\((?:.*?)\)\s*\{[\s\S]*\}\s*$/, "$1");
+}
+
 function e_defaultPrint(obj) {
+  if (typeof(obj) === "function") {
+    return "<JS func " + e_jsFunctionName(obj) + ">";
+  }
+  
   var s = "" + obj; // safe toString()
   
-  // print functions with name only, not source
-  s = s.replace(/^function\s+([\w$]+)?\s*\((?:.*?)\)\s*\{[\s\S]*\}\s*$/, "<JS func $1>");
-  
-  // print generic objects with their keys
-  if (s === "[object Object]") {
+  if (s === "[object Object]") { // print generic objects with their keys
     var keys = e_cajita.ownKeys(obj);
     keys.sort();
     s = "<{" + keys + "}>";
@@ -59,13 +64,18 @@ function e_defaultPrint(obj) {
   return s;
 }
 
-function e_noSuchMethod(r, v, a) {
+function e_typeString(obj) {
   var ty = typeof(r);
   if (ty === "object") {
-    ty = r.constructor.toString().split("\n")[0]; // XXX better name extraction -- regexp?
+    return e_jsFunctionName(obj.constructor);
+  } else {
+    return ty;
   }
+}
+
+function e_noSuchMethod(r, v, a) {
   // XXX this should go by way of E.toString() once we have crash protections
-  throw new Error("no such method: " + ty + " " + e_defaultPrint(r) + "." + v + "(" + a + ")")
+  throw new Error("no such method: " + e_typeString(r) + " " + e_defaultPrint(r) + "." + v + "(" + a + ")")
 }
 
 // called whenever an E-called object doesn't have an appropriately named JS method
@@ -107,15 +117,23 @@ function e_NoJsMethod(r, verb, args) {
 // Implement Miranda methods. matcherFunc should take (self, verb, args, matcherFail) and call matcherFail(self, verb, args) if it does not match.
 function e_doMiranda(self, verb, args, matcherFunc) {
   if (verb === "__printOn" && args.length === 1) {
-    // Miranda method. XXX provide Miranda separately for emsg implementations
     var out = args[0];
     e_call(out, "write", [e_defaultPrint(self)]);
     return e_null;
+  } else if (verb === "__conformTo" && args.length === 1) {
+    return self;
   } else if (verb === "__whenMoreResolved" && args.length === 1) {
-    // Miranda method. XXX provide Miranda separately for emsg implementations
     var reactor = args[0];
     e_send(reactor, "run", [self]);
     return e_null;
+  } else if (   verb === "__whenMoreResolved" && args.length === 1
+             || verb === "__optSealedDispatch" && args.length === 1
+             || verb === "__optUncall" && args.length === 0
+             || verb === "__order" && args.length === 2
+             || verb === "__reactToLostClient" && args.length === 1
+             || verb === "__respondsTo" && args.length === 2
+             || verb === "__whenBroken" && args.length === 1) {
+    throw new Error("Unimplemented Miranda message: " + verb + "/" + args.length);
   } else {
     return matcherFunc(self, verb, args, e_noSuchMethod);
   }
@@ -229,10 +247,20 @@ function e_sendOnly(recip, verb, args) {
 
 // --- 2nd level core --- 
 
+function e_CoercionError(specimen, typeDesc) {
+  // XXX value leakage for Cajita code
+  return new Error("E coercion error: " + specimen + " a " + e_typeString(specimen) + " is not a " + typeDesc);
+}
+
 // For use as a __printOn/1 implementation
 function e_toStringPrint(out) {
   e_call(out, "write", [this.toString()])
 }
+
+// For use as a __conformTo/1 implementation
+function e_valueWrapperConformTo(guard) {
+  return this.valueOf();
+};
 
 function e_NativeGuard(typeStr, eNameStr) {
   this.typeStr = typeStr
@@ -242,13 +270,15 @@ e_NativeGuard.prototype.emsg___printOn_1 = function (out) {
   e_call(out, "write", [this.eNameStr])
 }
 e_NativeGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
-  if (typeof(specimen) === "object" && specimen !== null) {
-    specimen = specimen.valueOf()
-  }
   if (typeof(specimen) === this.typeStr) {
-    return specimen
-  } else { // XXX miranda coerce
-    e_throw.emsg_eject_2(ejector, new Error("E coercion error: " + specimen + " a " + typeof(specimen) + " is not a " + this.typeStr));
+    return specimen;
+  } else {
+    var conformed = e_call(specimen, "__conformTo", [this]);
+    if (typeof(conformed) === this.typeStr) {
+      return conformed;
+    } else {
+      e_throw.emsg_eject_2(ejector, new e_CoercionError(specimen, this.typeStr));
+    }
   }
 }
 
@@ -258,9 +288,14 @@ function e_ObjectGuard(constr) {
 e_ObjectGuard.prototype.emsg_coerce_2 = function (specimen, ejector) {
   // Note that JavaScript code can create 'subclasses' of existing constructors, and create instances from existing constructors with arbitrarily modified properties/methods. HOWEVER, Cajita code can do neither, so checking instanceofs is sufficient in a world of Cajita code and relied-upon JavaScript code.
   if (specimen instanceof this.constr) {
-    return specimen
+    return specimen;
   } else { // XXX miranda coerce
-    e_throw.emsg_eject_2(ejector, new Error("E coercion error: " + specimen + " a " + specimen.constructor + " is not a " + (this.constr.toString().split("\n")[0]))); // kluge
+    var conformed = e_call(specimen, "__conformTo", [this]);
+    if (conformed instanceof this.constr) {
+      return conformed;
+    } else {
+      e_throw.emsg_eject_2(ejector, new e_CoercionError(specimen, e_jsFunctionName(this.constr)));
+    }
   }
 }
 
@@ -291,17 +326,16 @@ function e_getObjectGuard(constr) {
 var e_array_guard  = e_getObjectGuard(Array)
 
 var e_ConstList_guard = {
-  toString: function () { "<ConstList>" },
+  toString: function () { return "<ConstList>" },
   emsg_coerce_2: function (specimen, ejector) {
-    specimen = e_array_guard.emsg_coerce_2(specimen, ejector)
-    // XXX kludge -- a later Cajita will have cajita.isFrozen; then we can just write that instead of mentioning ___
-    if (!e_cajitaMode || ___.isFrozen(specimen)) {
-      return specimen
+    specimen = e_array_guard.emsg_coerce_2(specimen, ejector);
+    if (e_cajita.isFrozen(specimen)) {
+      return specimen;
     } else {
-      throw new Error("list is not const: " + specimen)
+      throw new Error("list is not const: " + specimen);
     }
   },
-}
+};
 
 var e_fqnTable = {} // XXX this doesn't actually do the right thing since tables are not keyed by objects in JS
 var e_sugarCache = {}
@@ -648,7 +682,8 @@ Array.prototype.emsg_iterate_1 = function (assocFunc) {
   }
 };
 
-Number.prototype.emsg___printOn_1 = e_toStringPrint
+Number.prototype.emsg___printOn_1 = e_toStringPrint;
+Number.prototype.emsg___conformTo_1 = e_valueWrapperConformTo;
 Number.prototype.emsg_op__cmp_1 = function (other) {
   other = e_number_guard.emsg_coerce_2(other, e_throw)
   if (this < other) {
@@ -701,18 +736,21 @@ Number.prototype.emsg_pow_1 = function (other) {
 })();
 
 Boolean.prototype.emsg___printOn_1 = e_toStringPrint
-Boolean.prototype.emsg_not_0 = function () { return !(this.valueOf()) }
+Boolean.prototype.emsg___conformTo_1 = e_valueWrapperConformTo;
+Boolean.prototype.emsg_not_0 = function () { return !(this.valueOf()); }
 Boolean.prototype.emsg_and_1 = function (other) { 
-  return this.valueOf() && e_boolean_guard.emsg_coerce_2(other, e_throw)
+  other = e_boolean_guard.emsg_coerce_2(other, e_throw); // avoid short circuit
+  return this.valueOf() && other;
 }
 Boolean.prototype.emsg_or_1 = function (other) { 
-  return this.valueOf() || e_boolean_guard.emsg_coerce_2(other, e_throw)
+  other = e_boolean_guard.emsg_coerce_2(other, e_throw); // avoid short circuit
+  return this.valueOf() || other;
 }
 Boolean.prototype.emsg_xor_1 = function (other) { 
-  return this.valueOf() != e_boolean_guard.emsg_coerce_2(other, e_throw)
+  return this.valueOf() != other;
 }
 Boolean.prototype.emsg_pick_2 = function (ifTrue, ifFalse) { 
-  return this.valueOf() ? ifTrue : ifFalse
+  return this.valueOf() ? ifTrue : ifFalse;
 }
 
 function e_writeEscapedText(text, out) {
@@ -745,6 +783,7 @@ String.prototype.emsg___printOn_1 = function (out) {
   e_writeEscapedText(this, out);
   e_call(out, "write", ['"']);
 }
+Boolean.prototype.emsg___conformTo_1 = e_valueWrapperConformTo;
 String.prototype.emsg_add_1 = function (other) {
   return this + e_string_guard.emsg_coerce_2(other, e_throw)
 }
