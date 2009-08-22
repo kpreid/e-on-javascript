@@ -235,7 +235,8 @@ def rewriteDom(dir,
       for step in steps {
         def i := stepCounter += 1
         
-        #progress.print(`incrementing counter to $i for $step`)
+        progress.print(".")
+        progress.flush()
 
         def term`test(@{via (stripNewlineStrict) source},
                       {@answers*})` := step
