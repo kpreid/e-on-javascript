@@ -1115,6 +1115,7 @@ var e_jsTools = e_cajita.freeze({
     ]);
     return e_cajitaMode ? ___.freeze(result) : result;
   },
+  emsg_newObject_0: function () { return {}; },
   emsg: function (verb, args) { 
     if (verb === "array") {
       // Could be cajita.copy, if we depended on Cajita.
