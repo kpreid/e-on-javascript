@@ -50,7 +50,7 @@ function e_jsFunctionName(func) {
 }
 
 function e_defaultPrint(obj) {
-  if (typeof(obj) === "function") {
+  if (typeof(obj) === "function" && obj.toString === Function.prototype.toString) {
     return "<JS func " + e_jsFunctionName(obj) + ">";
   }
   
