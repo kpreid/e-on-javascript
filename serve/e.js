@@ -763,12 +763,15 @@ function e_writeEscapedText(text, out) {
      e_call(out, "write", [text.substring(i, j)]);
      if (j < text.length) {
        var esc;
-       switch (j) {
+       switch (text[j]) {
          case "\b": esc = "\\b"; break;
          case "\t": esc = "\\t"; break;
          case "\n": esc = "\\n"; break;
          case "\f": esc = "\\f"; break;
          case "\r": esc = "\\r"; break;
+         case "\'": esc = "\\'"; break;
+         case "\"": esc = "\\\""; break;
+         case "\\": esc = "\\\\"; break;
          default:   
            esc = "0000" + c.charCodeAt(0).toString(16);
            esc = "\\u" + esc.substring(esc.length - 4);
