@@ -144,6 +144,8 @@ When Cajita is loaded, the following behaviors are enabled:
 
 Any Cajita object given to E code has the verbs get/1 and put/2, accessing properties, and run/*, calling it as a function.
 
+Note that get/1 will throw if the property does not exist.
+
 A verb beginning with ".", or not on the above list of special verbs, specifies a JS method call. That is, E 'obj.foo()' is equivalent to Cajita 'obj.foo()' and E 'obj.".get"()' is equivalent to Cajita 'obj.get()'.
 
 <import:org.erights.eojs.cajita> returns the 'cajita' object. <import:org.erights.eojs.cajitaEnv> returns the '___.sharedImports' object. See "Writing an application" above for other platform-specific information.

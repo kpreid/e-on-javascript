@@ -91,7 +91,13 @@ function e_NoJsMethod(r, verb, args) {
         return matcherFail(r, verb, args);
       } else if (verb === "get" && args.length === 1) { // Cajita
         var propName = e_string_guard.emsg_coerce_2(args[0], e_throw);
-        return cajita.readPub(r, propName);
+        var result = cajita.readPub(r, propName);
+        if (result === undefined && !___.inPub(propName, r)) {
+          // XXX should report the object too; we need a general sealed-exception mechanism to deal with peer Cajita code which has access to thrown exception
+          throw new Error("Property not found on JS object: " + propName);
+        } else {
+          return result;
+        }
       } else if (verb === "put" && args.length === 2) { // Cajita
         var propName = e_string_guard.emsg_coerce_2(args[0], e_throw);
         cajita.setPub(r, propName, args[1]);
