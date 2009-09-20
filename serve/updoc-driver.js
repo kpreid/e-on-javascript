@@ -21,7 +21,7 @@ function makePrintFunc(unenv) {
   return printEFunc;
 }
 
-function updoc_Driver(prefix, runInitFunc) {
+function updoc_Driver(prefix, runInitFunc, updocRootElement) {
   var waitHook;
   var printFunc;
   
@@ -74,6 +74,14 @@ function updoc_Driver(prefix, runInitFunc) {
     for (var i = 0; i < updoc_notifyStatus.length; i++) {
       e_call(e_e, "send", [updoc_notifyStatus[i], "run", [prefix]])
     }
+    var status = updoc_status[prefix];
+    
+    updocRootElement.className = updocRootElement.className.replace(
+      /updoc-summary-\S*|$/,
+      (status.done ? status.failure > 0 
+                       ? "updoc-summary-mismatch"
+                       : "updoc-summary-matched"
+                   : "updoc-summary-running"));
   }
   
   function finishStep(index, answers, expectedAnswers) {

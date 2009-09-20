@@ -174,9 +174,7 @@ def rewriteDom(dir,
     head.appendChild(def e := document.createElementNS(htmlns, "script"))
     e.appendChild(document.createTextNode(`
       var $envVar;
-      var $updocVar = new updoc_Driver(
-        ${jsQuote(prefix)},
-        function () { $envVar = $updocVar.augmentEnv(e_privilegedEnv); });
+      var $updocVar;
     `))
   }
   {
@@ -190,18 +188,20 @@ def rewriteDom(dir,
   body.insertBefore(updocControlPanel, body.getFirstChild()) # XXX insert after the h1 if there is one
   updocControlPanel.setAttribute("class", "updoc-header-control-panel")
   
-  # Control panel progress bar
-  def updocProgressBar := document.createElementNS(htmlns, "p")
-  body.insertBefore(updocProgressBar, updocControlPanel)
-  updocProgressBar.setAttribute("class", "updoc-progress-bar")
-  
+  updocControlPanel.appendChild(def controlPanelControls := document.createElementNS(htmlns, "p"))
+  controlPanelControls.setAttribute("class", "updoc-header-controls")
   { # Control panel restart button
-    updocControlPanel.appendChild(def e := document.createElementNS(htmlns, "button"))
+    controlPanelControls.appendChild(def e := document.createElementNS(htmlns, "button"))
     e.appendChild(document.createTextNode(`Rerun`))
     e.setAttribute("onclick", `
       $updocVar.run()
     `)
   }
+  
+  # Control panel progress bar
+  def updocProgressBar := document.createElementNS(htmlns, "p")
+  updocControlPanel.appendChild(updocProgressBar)
+  updocProgressBar.setAttribute("class", "updoc-progress-bar")  
   
   var stepCounter := -1
   
@@ -272,10 +272,11 @@ def rewriteDom(dir,
         
         # progress bar element
         updocProgressBar.appendChild(def pbElem := document.createElementNS(htmlns, "a"))
+        #updocProgressBar.appendChild(document.createTextNode(" "))
         pbElem.setAttribute("class", "updoc-progress updoc-pending")
         pbElem.setAttribute("id", `$prefix-progress-$i`)
         pbElem.setAttribute("href", `#$prefix-step-$i`)
-        pbElem.appendChild(document.createTextNode(`$i`))
+        pbElem.appendChild(document.createTextNode(` $i `))
       }
     }
   }
@@ -284,7 +285,13 @@ def rewriteDom(dir,
     body.appendChild(def e := document.createElementNS(htmlns, "script"))
     
     e.appendChild(document.createTextNode(`
-    $updocVar.run()`))
+      $updocVar = new updoc_Driver(
+        ${jsQuote(prefix)},
+        function () { $envVar = $updocVar.augmentEnv(e_privilegedEnv); },
+        document.getElementsByTagName("body")[0]
+      )
+      $updocVar.run()
+    `))
   }
   
   {

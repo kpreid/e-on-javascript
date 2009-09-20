@@ -1,3 +1,17 @@
+/* 
+.updoc-step is the containing element of each updoc step. It may contain .updoc-expr, .updoc-output-exp, and .updoc-output-got.
+
+Each .updoc-step and .updoc-progress may also have these classes:
+
+  .updoc-pending: not yet executed.
+  .updoc-running: currently running.
+  .updoc-matched: output matched expectation (successful)
+  .updoc-mismatch: failure.
+
+TODO: Add to the markup an overall running/success/failure class, which we use to style the scrap of plain background behind the last line of the progress bar.
+
+*/
+
 /* --- defaults --- */
 
 .updoc-step {
@@ -15,15 +29,47 @@
   margin-bottom: 0;
 }
 
-.updoc-progress-bar {
-  display: table;
-  width: 90%;
+/* --- control panel --- */
+
+.updoc-header-control-panel {
   margin: .5em auto;
-  border: 4px ridge white;
+  width: 90%;
+  border: 2px solid #E7C9A9;
+  display: table;
+
+  color: black;
+  background: #fed;
+}
+.updoc-header-control-panel > * {
+  display: table-cell;
+}
+.updoc-header-control-panel > .updoc-header-controls {
+  padding: 2px;
+  vertical-align: middle;
+}
+.updoc-header-control-panel .updoc-progress-bar {
+  vertical-align: middle;
+  padding: 0;
+  border: 1px solid #E7C9A9;
+  background: white;
+}
+.updoc-header-control-panel .updoc-progress {
+}
+
+/* --- progress bar basics --- */
+
+/* .updoc-progress-bar is the outer element, and it contains one .updoc-progress for each updoc step. */
+
+.updoc-progress-bar {
+  text-align: justify;
 }
 .updoc-progress {
-  display: table-cell;
+  display: inline;
   text-align: center;
+}
+
+.updoc-progress:link, .updoc-progress:visited {
+  text-decoration: none;
 }
 
 /* --- step labels --- */
@@ -49,14 +95,14 @@
   border-left: dotted black;
 }
 
-.updoc-progress.updoc-pending {
+.updoc-progress.updoc-pending, .updoc-summary-pending .updoc-progress-bar {
   background: white;
   color: black;
 }
 
 /* --- running --- */
 
-.updoc-step.updoc-running, .updoc-progress.updoc-running {
+.updoc-step.updoc-running, .updoc-progress.updoc-running, .updoc-summary-running .updoc-progress-bar {
   color: black;
   background: #EEE;
 }
@@ -70,7 +116,7 @@
 .updoc-step.updoc-matched .updoc-output-got { color: black; }
 .updoc-step.updoc-matched .updoc-output-exp { display: none; }
 
-.updoc-progress.updoc-matched {
+.updoc-progress.updoc-matched, .updoc-summary-matched .updoc-progress-bar {
   background: #AFA;
   color: gray;
 }
@@ -84,7 +130,7 @@
 .updoc-step.updoc-mismatch .updoc-output-got { color: red; }
 .updoc-step.updoc-mismatch .updoc-output-exp { color: green; }
 
-.updoc-progress.updoc-mismatch {
+.updoc-progress.updoc-mismatch, .updoc-summary-mismatch .updoc-progress-bar {
   background: red;
   color: white;
 }
