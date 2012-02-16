@@ -36,12 +36,15 @@ $rendered
 </body></html>`)
   }
   
+  def seen := [].asSet().diverge()
   def fetchCategory(catUrlesc, progress) {
+    if (seen.contains(catUrlesc)) { return }
+    seen.addElement(catUrlesc)
     # XXX replace this with use of the MediaWiki API.
     # Does not deal with paged categories and is probably wrong wrt escaping.
     progress.lnPrint(`$catUrlesc:`)
     var rendered := <http>[`//wiki.erights.org/w/index.php?title=Category:$catUrlesc&action=render`].getTwine() # XXX should be async
-    while (rendered =~ `@{_}href="http://wiki.erights.org/wiki/@subpageUrl"@{rest}`) {
+    while (rendered =~ `@{_}href="http://@{_}/wiki/@subpageUrl"@{rest}`) {
       rendered := rest
       switch (subpageUrl) {
         match `Category:@subcat` {
